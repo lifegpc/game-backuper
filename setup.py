@@ -11,7 +11,6 @@ if len(sys.argv) == 2 and sys.argv[1] == "py2exe":
         "options": {
             "py2exe": {
                 "optimize": 2,
-                "bundle_files": 1,
             }
         },
         "zipfile": None,
