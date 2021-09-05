@@ -12,7 +12,10 @@ if len(sys.argv) == 2 and sys.argv[1] == "py2exe":
 else:
     from setuptools import setup
     params = {
-        "install_requires": ["pyyaml"]
+        "install_requires": ["pyyaml"],
+        'entry_points': {
+            'console_scripts': ['game-backuper = game_backuper:main']
+        }
     }
 setup(
     name="game-backuper",

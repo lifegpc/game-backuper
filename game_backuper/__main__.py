@@ -16,8 +16,5 @@ def main(cm=None):
 
 
 if __name__ == "__main__":
-    import sys
-    try:
-        sys.exit(main())
-    except Exception:
-        sys.exit(-1)
+    from game_backuper import start
+    start()
