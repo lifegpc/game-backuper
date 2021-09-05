@@ -14,7 +14,7 @@ else:
     params = {
         "install_requires": ["pyyaml"],
         'entry_points': {
-            'console_scripts': ['game-backuper = game_backuper:main']
+            'console_scripts': ['game-backuper = game_backuper:start']
         }
     }
 setup(
