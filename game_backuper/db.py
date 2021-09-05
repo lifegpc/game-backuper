@@ -95,5 +95,5 @@ class Db:
     def set_file(self, id: int, size: int, hash: str):
         with self._lock:
             self.db.execute('UPDATE files SET size=?, hash=? WHERE id=?;',
-                            (id,))
+                            (size, hash, id))
             self.db.commit()
