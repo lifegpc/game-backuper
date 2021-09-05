@@ -1,4 +1,4 @@
-from game_backuper.__main__ import main
+from game_backuper.main import main
 
 
 def start():

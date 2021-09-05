@@ -7,7 +7,14 @@ if len(sys.argv) == 2 and sys.argv[1] == "py2exe":
         "console": [{
             'script': "game_backuper/__main__.py",
             "dest_base": 'game-backuper'
-        }]
+        }],
+        "options": {
+            "py2exe": {
+                "optimize": 2,
+                "bundle_files": 1,
+            }
+        },
+        "zipfile": None,
     }
 else:
     from setuptools import setup
