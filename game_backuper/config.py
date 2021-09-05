@@ -4,8 +4,8 @@ try:
 except Exception:
     from yaml import SafeLoader
 from os.path import join, relpath
-from os import listdir
 from typing import List
+from game_backuper.file import listdirs
 
 
 class Program:
@@ -46,12 +46,9 @@ class Program:
                 t = i['type']
                 if t == 'path':
                     bp = join(b, i['path'])
-                    ll = listdir(bp)
+                    ll = listdirs(bp)
                     for ii in ll:
-                        if ii.startswith('.'):
-                            continue
-                        pa = join(bp, ii)
-                        r.append((relpath(pa, b), pa))
+                        r.append((relpath(ii, b), ii))
         return r
 
     @property
