@@ -47,6 +47,8 @@ class BackupTask(Thread):
                 from game_backuper.leveldb import have_leveldb
                 if not have_leveldb:
                     raise ValueError('Leveldb is not supported.')
+                if not exists(f.full_path):
+                    continue
                 from game_backuper.leveldb import (
                     list_leveldb_entries,
                     leveldb_stats,

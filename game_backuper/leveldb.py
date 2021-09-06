@@ -1,16 +1,16 @@
 try:
     from plyvel import DB
     have_leveldb = True
-    from typing import List
-    from hashlib import sha512
-    from base64 import b85encode
-    from collections import namedtuple
-    from sqlite3 import connect
 except ImportError:
     have_leveldb = False
 
 
 if have_leveldb:
+    from typing import List
+    from hashlib import sha512
+    from base64 import b85encode
+    from collections import namedtuple
+    from sqlite3 import connect
     LeveldbStats = namedtuple('LeveldbStats', ['hash', 'size'])
     MAP_TABLE = '''CREATE TABLE map (
     key TEXT,

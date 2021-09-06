@@ -52,6 +52,8 @@ class Db:
             self.__write_version()
         if 'files' not in self._exist_table:
             self.db.execute(FILES_TABLE)
+        if 'filetype' not in self._exist_table:
+            self.db.execute(FILETYPE_TABLE)
         self.db.commit()
 
     def __init__(self, loc: str):
