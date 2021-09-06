@@ -13,6 +13,8 @@ else:
 class OptAction(IntEnum):
     BACKUP = 0
     RESTORE = 1
+    LIST = 2
+    LIST_LEVELDB_KEY = 3
 
     @staticmethod
     def from_str(v: str) -> IntEnum:
@@ -22,6 +24,10 @@ class OptAction(IntEnum):
                 return OptAction.BACKUP
             elif t == 'restore':
                 return OptAction.RESTORE
+            elif t == 'list':
+                return OptAction.LIST
+            elif t == 'list_leveldb_key':
+                return OptAction.LIST_LEVELDB_KEY
         else:
             raise TypeError('Must be str.')
 
@@ -33,19 +39,26 @@ class Opts:
 
     def __init__(self, cml: List[str]):
         try:
-            r = getopt(cml, 'hc:', [])
+            r = getopt(cml, 'hc:', ['help', 'config='])
             for i in r[0]:
-                if i[0] == '-h':
+                if i[0] == '-h' or i[0] == '--help':
                     self.print_help()
                     import sys
                     sys.exit(0)
-                elif i[0] == '-c':
+                elif i[0] == '-c' or i[0] == '--config':
                     self.config_file = i[1]
             if len(r[1]) > 0:
                 cm = r[1]
                 re = OptAction.from_str(cm[0])
                 if re is not None:
                     self.action = re
+                    if re == OptAction.LIST:
+                        return
+                    elif re == OptAction.LIST_LEVELDB_KEY:
+                        if len(cm) == 1:
+                            raise GetoptError('list_leveldb_key need at least one db_path.')  # noqa: E501
+                        self.programs_list = cm[1:]
+                        return
                 li = cm if re is None else cm[1:]
                 if len(li) > 0:
                     self.programs_list = li
@@ -56,4 +69,9 @@ class Opts:
             sys.exit(-1)
 
     def print_help(self):
-        print('''game-backuper [options] [backup|restore] [game names]''')
+        print('''game-backuper [options] [backup|restore] [<game names> [...]]
+game-backuper [options] list
+game-backuper [options] list_leveldb_key [<db_path> [...]]
+Options:
+    -h, --help          Print help message.
+    -c, --config <path> Set config file.''')

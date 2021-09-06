@@ -7,7 +7,7 @@ from game_backuper.config import (
 )
 from game_backuper.cml import Opts, OptAction
 from threading import Thread
-from os.path import exists, join
+from os.path import exists, join, isdir
 from os import mkdir, remove
 from game_backuper.file import new_file, copy_file, File, mkdir_for_file
 from game_backuper.filetype import FileType
@@ -46,7 +46,7 @@ class BackupTask(Thread):
             elif isinstance(f, ConfigLeveldb):
                 from game_backuper.leveldb import have_leveldb
                 if not have_leveldb:
-                    raise ValueError('Leveldb is not supported.')
+                    raise NotImplementedError('Leveldb is not supported.')
                 if not exists(f.full_path):
                     continue
                 from game_backuper.leveldb import (
@@ -93,9 +93,26 @@ class Backuper:
             t = BackupTask(prog, self.db, self.conf)
             self.tasks.append(t)
             t.start()
+        elif self.opts.action == OptAction.LIST:
+            print(prog.name)
 
     def run(self):
-        if self.opts.programs_list is None:
+        if self.opts.action == OptAction.LIST_LEVELDB_KEY:
+            from game_backuper.leveldb import have_leveldb
+            if not have_leveldb:
+                raise NotImplementedError('Leveldb is not supported.')
+            from game_backuper.leveldb import list_leveldb_entries
+            for db in self.opts.programs_list:
+                if exists(db):
+                    if isdir(db):
+                        print(f'Keys in "{db}":')
+                        for i in list_leveldb_entries(db):
+                            print(i)
+                    else:
+                        raise FileExistsError(f'"{db}" should be a directory.')
+                else:
+                    raise FileNotFoundError(f'Can not find "{db}"')
+        elif self.opts.programs_list is None:
             for prog in self.conf.progs:
                 self.deal_prog(prog)
         else:
