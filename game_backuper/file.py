@@ -3,9 +3,10 @@ from os.path import exists, dirname, abspath, isfile, isdir, join
 from os import stat, makedirs, listdir
 from game_backuper.hashl import sha512
 from shutil import copy2
+from game_backuper.filetype import FileType
 
 
-File = namedtuple('File', ['id', 'file', 'size', 'program', 'hash'])
+File = namedtuple('File', ['id', 'file', 'size', 'program', 'hash', 'type'])
 
 
 def copy_file(loc: str, dest: str, name: str, prog: str):
@@ -30,9 +31,9 @@ def listdirs(loc: str):
     return r
 
 
-def new_file(loc: str, name: str, prog: str) -> File:
+def new_file(loc: str, name: str, prog: str, type: FileType = None) -> File:
     if exists(loc):
         fs = stat(loc).st_size
         with open(loc, 'rb') as f:
             hs = sha512(f)
-        return File(None, name, fs, prog, hs)
+        return File(None, name, fs, prog, hs, type)

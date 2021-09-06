@@ -4,8 +4,14 @@ try:
 except Exception:
     from yaml import SafeLoader
 from os.path import join, relpath
-from typing import List
+from typing import List, Union
 from game_backuper.file import listdirs
+from collections import namedtuple
+
+
+ConfigNormalFile = namedtuple('ConfigNormalFile', ['name', 'full_path'])
+ConfigLeveldb = namedtuple('ConfigLeveldb', ['name', 'full_path', 'domains'])
+ConfigResult = Union[ConfigNormalFile, ConfigLeveldb]
 
 
 class Program:
@@ -30,7 +36,7 @@ class Program:
         self._files = None
 
     @property
-    def files(self) -> List[str]:
+    def files(self) -> List[ConfigResult]:
         ke = 'files'
         if ke not in self.data or not isinstance(self.data[ke], list):
             raise ValueError('Files is needed and should be a list.')
@@ -41,14 +47,25 @@ class Program:
         for i in self.data[ke]:
             b = self.base
             if isinstance(i, str):
-                r.append((i, join(b, i)))
+                r.append(ConfigNormalFile(i, join(b, i)))
             elif isinstance(i, dict):
                 t = i['type']
                 if t == 'path':
                     bp = join(b, i['path'])
                     ll = listdirs(bp)
                     for ii in ll:
-                        r.append((relpath(ii, b), ii))
+                        r.append(ConfigNormalFile(relpath(ii, b), ii))
+                elif t == 'leveldb':
+                    p = join(b, i['path'])
+                    dms = None
+                    if 'domains' in i and isinstance(i['domains'], list):
+                        dms = []
+                        for ii in i['domains']:
+                            if isinstance(ii, str) and len(ii) > 0:
+                                dms.append(ii.encode())
+                        if len(dms) == 0:
+                            dms = None
+                    r.append(ConfigLeveldb(i['path'], p, dms))
         return r
 
     @property

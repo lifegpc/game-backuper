@@ -3,6 +3,7 @@ from os.path import join
 from typing import List
 from threading import Lock
 from game_backuper.file import File
+from game_backuper.filetype import FileType
 
 
 VERSION_TABLE = '''CREATE TABLE version (
@@ -21,16 +22,25 @@ program TEXT,
 hash TEXT,
 PRIMARY KEY(id)
 );'''
+FILETYPE_TABLE = '''CREATE TABLE filetype (
+id INT,
+type INT,
+PRIMARY KEY(id)
+);'''
 
 
 class Db:
-    VERSION = [1, 0, 0, 0]
+    VERSION = [1, 0, 0, 1]
 
     def __check_database(self) -> bool:
         self.__updateExistsTable()
         v = self.__read_version()
         if v is None:
             return False
+        if v < self.VERSION:
+            if v < [1, 0, 0, 1]:
+                self.db.execute(FILETYPE_TABLE)
+            self.__write_version()
         if v > self.VERSION:
             raise ValueError(
                 'Database version is higher. Please update program.')
@@ -82,14 +92,23 @@ class Db:
         with self._lock:
             self.db.execute('INSERT INTO files (file, size, program, hash) VALUES (?, ?, ?, ?);',  # noqa: E501
                             (f.file, f.size, f.program, f.hash))
+            if f.type is not None:
+                cur = self.db.execute(
+                    'SELECT * FROM files WHERE program=? AND file=?;',
+                    (f.program, f.file))
+                for i in cur:
+                    self.db.execute('INSERT INTO filetype VALUES (?, ?);',
+                                    (i[0], f.type))
             self.db.commit()
 
     def get_file(self, prog: str, file: str) -> File:
         with self._lock:
             cur = self.db.execute(
-                'SELECT * FROM files WHERE program=? AND file=?;', (prog,
-                                                                    file))
+                'SELECT files.*, filetype.type FROM files LEFT JOIN filetype ON files.id=filetype.id WHERE program=? AND file=?;',  # noqa: E501
+                (prog, file))
             for i in cur:
+                if i[5] is not None:
+                    i[5] = FileType(i[5])
                 return File(*i)
 
     def set_file(self, id: int, size: int, hash: str):
