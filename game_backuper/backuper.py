@@ -8,11 +8,9 @@ from game_backuper.config import (
 from game_backuper.cml import Opts, OptAction
 from threading import Thread
 from os.path import exists, join
-from os import mkdir
-from game_backuper.file import new_file, copy_file
-from game_backuper.leveldb import have_leveldb
-if have_leveldb:
-    from game_backuper.leveldb import list_leveldb_entries
+from os import mkdir, remove
+from game_backuper.file import new_file, copy_file, File, mkdir_for_file
+from game_backuper.filetype import FileType
 
 
 class BackupTask(Thread):
@@ -46,9 +44,38 @@ class BackupTask(Thread):
                         copy_file(f[1], de, f[0], prog)
                         self.db.add_file(nf)
             elif isinstance(f, ConfigLeveldb):
+                from game_backuper.leveldb import have_leveldb
                 if not have_leveldb:
                     raise ValueError('Leveldb is not supported.')
-                print(list_leveldb_entries(f.full_path, f.domains))
+                from game_backuper.leveldb import (
+                    list_leveldb_entries,
+                    leveldb_stats,
+                    leveldb_to_sqlite,
+                )
+                ent = list_leveldb_entries(f.full_path, f.domains)
+                stats = leveldb_stats(f.full_path, ent)
+                ori = self.db.get_file(prog, f.name)
+                de = join(bp, f.name + ".db")
+                if ori is not None:
+                    if ori.size == stats.size and ori.hash == stats.hash:
+                        continue
+                    if ori.type is None or ori.type != FileType.LEVELDB:
+                        pp = join(bp, ori.file)
+                        if exists(pp):
+                            remove(pp)
+                        self.db.remove_file(ori)
+                        ori = None
+                if exists(de):
+                    remove(de)
+                mkdir_for_file(de)
+                leveldb_to_sqlite(f.full_path, de, ent)
+                print(f'{prog}: Covert leveldb done. {f.full_path}({f.name}) -> {de}')  # noqa: E501
+                if ori is None:
+                    nf = File(None, f.name, stats.size, prog, stats.hash,
+                              FileType.LEVELDB)
+                    self.db.add_file(nf)
+                else:
+                    self.db.set_file(ori.id, stats.size, stats.hash)
 
 
 class Backuper:

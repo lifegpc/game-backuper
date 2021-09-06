@@ -9,10 +9,14 @@ from game_backuper.filetype import FileType
 File = namedtuple('File', ['id', 'file', 'size', 'program', 'hash', 'type'])
 
 
-def copy_file(loc: str, dest: str, name: str, prog: str):
-    d = dirname(abspath(dest))
+def mkdir_for_file(p: str):
+    d = dirname(abspath(p))
     if not exists(d):
         makedirs(d)
+
+
+def copy_file(loc: str, dest: str, name: str, prog: str):
+    mkdir_for_file(dest)
     r = copy2(loc, dest)
     print(f'{prog}: Copyed {loc}({name}) -> {r}')
 

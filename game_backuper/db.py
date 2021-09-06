@@ -1,6 +1,6 @@
 from sqlite3 import connect
 from os.path import join
-from typing import List
+from typing import List, Union
 from threading import Lock
 from game_backuper.file import File
 from game_backuper.filetype import FileType
@@ -107,9 +107,24 @@ class Db:
                 'SELECT files.*, filetype.type FROM files LEFT JOIN filetype ON files.id=filetype.id WHERE program=? AND file=?;',  # noqa: E501
                 (prog, file))
             for i in cur:
-                if i[5] is not None:
-                    i[5] = FileType(i[5])
                 return File(*i)
+
+    def remove_file(self, id: Union[int, File]):
+        with self._lock:
+            ft = None
+            if isinstance(id, File):
+                iid = id.id
+                ft = id.type
+            else:
+                cur = self.db.execute('SELECT type FROM filetype WHERE id=?;',
+                                      (id,))
+                for i in cur:
+                    ft = FileType(i[0])
+                iid = id
+            self.db.execute('DELETE FROM files WHERE id=?;', (iid,))
+            if ft is not None:
+                self.db.execute('DELETE FROM filetype WHERE id=?;', (iid,))
+            self.db.commit()
 
     def set_file(self, id: int, size: int, hash: str):
         with self._lock:
