@@ -3,10 +3,10 @@ programs:
   - name: Your program name  # This name is used to identify different application.
     base: /path/to/save/path  # Must be absoulte path.
     files:
-      - BGI.gdb  # A single save file. Must be relative path.
+      - BGI.gdb  # path to a file/folder. All subfolders will include if it is a folder. Must be relative path.
       - type: path
-        path: folder  # path to a folder. All subfolders will include. Must be relative path.
+        path: folder  # path to a file/folder. All subfolders will include if it is a folder. Must be relative path.
       - type: leveldb  # module plyvel is needed to support this type. This will store leveldb database to a single file database (sqlite3)
-        path: leveldb # path to leveldb. Must be relative path.
+        path: leveldb  # path to leveldb. Must be relative path.
         domains:  # optional. Just backup minor domains in localstorage database. Only chromium is tested.
           - some domain

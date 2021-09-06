@@ -3,7 +3,7 @@ try:
     from yaml import CSafeLoader as SafeLoader
 except Exception:
     from yaml import SafeLoader
-from os.path import join, relpath
+from os.path import join, relpath, isfile, isdir
 from typing import List, Union
 from game_backuper.file import listdirs
 from collections import namedtuple
@@ -47,14 +47,23 @@ class Program:
         for i in self.data[ke]:
             b = self.base
             if isinstance(i, str):
-                r.append(ConfigNormalFile(i, join(b, i)))
+                bp = join(b, i)
+                if isfile(bp):
+                    r.append(ConfigNormalFile(i, bp))
+                elif isdir(bp):
+                    ll = listdirs(bp)
+                    for ii in ll:
+                        r.append(ConfigNormalFile(relpath(ii, b), ii))
             elif isinstance(i, dict):
                 t = i['type']
                 if t == 'path':
                     bp = join(b, i['path'])
-                    ll = listdirs(bp)
-                    for ii in ll:
-                        r.append(ConfigNormalFile(relpath(ii, b), ii))
+                    if isfile(bp):
+                        r.append(ConfigNormalFile(i['path'], bp))
+                    elif isdir(bp):
+                        ll = listdirs(bp)
+                        for ii in ll:
+                            r.append(ConfigNormalFile(relpath(ii, b), ii))
                 elif t == 'leveldb':
                     p = join(b, i['path'])
                     dms = None

@@ -36,7 +36,7 @@ class BackupTask(Thread):
                     de = join(bp, f[0])
                     if ori is not None:
                         if ori.size == nf.size and ori.hash == nf.hash:
-                            print(f'{prog}: Skip {f[0]}({f[1]}).')
+                            print(f'{prog}: Skip {f[0]}.')
                             continue
                         copy_file(f[1], de, f[0], prog)
                         self.db.set_file(ori.id, nf.size, nf.hash)
@@ -58,6 +58,7 @@ class BackupTask(Thread):
                 de = join(bp, f.name + ".db")
                 if ori is not None:
                     if ori.size == stats.size and ori.hash == stats.hash:
+                        print(f'{prog}: Skip {f[0]}')
                         continue
                     if ori.type is None or ori.type != FileType.LEVELDB:
                         pp = join(bp, ori.file)
