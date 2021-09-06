@@ -5,7 +5,7 @@ from game_backuper.config import (
     ConfigNormalFile,
     ConfigLeveldb,
 )
-from game_backuper.cml import Opts
+from game_backuper.cml import Opts, OptAction
 from threading import Thread
 from os.path import exists, join
 from os import mkdir
@@ -58,11 +58,23 @@ class Backuper:
         self.opts = opts
         self.tasks = []
 
-    def run(self):
-        for prog in self.conf.progs:
+    def deal_prog(self, prog: Program):
+        if self.opts.action == OptAction.BACKUP:
             t = BackupTask(prog, self.db, self.conf)
             self.tasks.append(t)
             t.start()
+
+    def run(self):
+        if self.opts.programs_list is None:
+            for prog in self.conf.progs:
+                self.deal_prog(prog)
+        else:
+            for n in self.opts.programs_list:
+                if n not in self.conf.progs_name:
+                    raise ValueError(f'Can not find "{n}" in config file.')
+            for n in self.opts.programs_list:
+                prog = self.conf.progs[self.conf.progs_name.index(n)]
+                self.deal_prog(prog)
         self.wait()
         return 0
 

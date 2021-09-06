@@ -1,16 +1,24 @@
 # flake8: noqa
 import sys
+from game_backuper import __version__
 if len(sys.argv) == 2 and sys.argv[1] == "py2exe":
     from distutils.core import setup
     import py2exe
     params = {
         "console": [{
             'script': "game_backuper/__main__.py",
-            "dest_base": 'game-backuper'
+            "dest_base": 'game-backuper',
+            'version': __version__,
+            'product_name': 'game-backuper',
+            'product_version': __version__,
+            'company_name': 'lifegpc',
+            'description': 'A game backuper',
         }],
         "options": {
             "py2exe": {
                 "optimize": 2,
+                "compressed": 1,
+                "excludes": ["pydoc"]
             }
         },
         "zipfile": None,
@@ -25,7 +33,7 @@ else:
     }
 setup(
     name="game-backuper",
-    version="1.0.0",
+    version=__version__,
     url="https://github.com/lifegpc/game-backuper",
     author="lifegpc",
     author_email="g1710431395@gmail.com",

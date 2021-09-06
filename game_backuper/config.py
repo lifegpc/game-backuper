@@ -79,6 +79,7 @@ class Program:
 class Config:
     dest = ''
     progs = []
+    progs_name = []
 
     def __init__(self, fn: str):
         with open(fn, 'r', encoding='UTF-8') as f:
@@ -99,4 +100,8 @@ class Config:
             p = Program(prog)
             if not p.check():
                 raise ValueError('Config error: program information error')
-            self.progs.append(p)
+            if p.name not in self.progs_name:
+                self.progs_name.append(p.name)
+                self.progs.append(p)
+            else:
+                raise ValueError(f'have same name "{p.name}" in programs.')
