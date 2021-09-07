@@ -3,7 +3,7 @@ try:
     from yaml import CSafeLoader as SafeLoader
 except Exception:
     from yaml import SafeLoader
-from os.path import join, relpath, isfile, isdir
+from os.path import join, relpath, isfile, isdir, isabs
 from typing import List, Union
 from game_backuper.file import listdirs
 from collections import namedtuple
@@ -47,6 +47,8 @@ class Program:
         for i in self.data[ke]:
             b = self.base
             if isinstance(i, str):
+                if isabs(i):
+                    raise ValueError('Absolute path must need a name.')
                 bp = join(b, i)
                 if isfile(bp):
                     r.append(ConfigNormalFile(i, bp))
@@ -57,13 +59,20 @@ class Program:
             elif isinstance(i, dict):
                 t = i['type']
                 if t == 'path':
-                    bp = join(b, i['path'])
+                    if isabs(i['path']):
+                        if 'name' not in i or not isinstance(i['name'], str) or i['name'] == '':  # noqa: E501
+                            raise ValueError('Absolute path must need a name.')
+                        bp = i['path']
+                        name = i['name']
+                    else:
+                        bp = join(b, i['path'])
+                        name = i['path']
                     if isfile(bp):
-                        r.append(ConfigNormalFile(i['path'], bp))
+                        r.append(ConfigNormalFile(name, bp))
                     elif isdir(bp):
                         ll = listdirs(bp)
                         for ii in ll:
-                            r.append(ConfigNormalFile(relpath(ii, b), ii))
+                            r.append(ConfigNormalFile(join(name, relpath(ii, bp)), ii))  # noqa: E501
                 elif t == 'leveldb':
                     p = join(b, i['path'])
                     dms = None
