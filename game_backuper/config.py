@@ -67,6 +67,9 @@ class Program:
                     else:
                         bp = join(b, i['path'])
                         name = i['path']
+                        if 'name' in i and isinstance(i['name'], str):
+                            if i['name'] != '':
+                                name = i['name']
                     if isfile(bp):
                         r.append(ConfigNormalFile(name, bp))
                     elif isdir(bp):
@@ -74,7 +77,17 @@ class Program:
                         for ii in ll:
                             r.append(ConfigNormalFile(join(name, relpath(ii, bp)), ii))  # noqa: E501
                 elif t == 'leveldb':
-                    p = join(b, i['path'])
+                    if isabs(i['path']):
+                        if 'name' not in i or not isinstance(i['name'], str) or i['name'] == '':  # noqa: E501
+                            raise ValueError('Absolute path must need a name.')
+                        p = i['path']
+                        n = i['name']
+                    else:
+                        p = join(b, i['path'])
+                        n = i['path']
+                        if 'name' in i and isinstance(i['name'], str):
+                            if i['name'] != '':
+                                n = i['name']
                     dms = None
                     if 'domains' in i and isinstance(i['domains'], list):
                         dms = []
@@ -83,7 +96,7 @@ class Program:
                                 dms.append(ii.encode())
                         if len(dms) == 0:
                             dms = None
-                    r.append(ConfigLeveldb(i['path'], p, dms))
+                    r.append(ConfigLeveldb(n, p, dms))
         return r
 
     @property

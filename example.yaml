@@ -6,8 +6,9 @@ programs:
       - BGI.gdb  # path to a file/folder. All subfolders will include if it is a folder. Must be relative path.
       - type: path
         path: folder  # path to a file/folder. All subfolders will include if it is a folder. Must be relative path if name not found.
-        name: folder2  # path to the backup files. Shoule be a relative path
+        name: folder2  # optional. path to the backup files. Shoule be a relative path
       - type: leveldb  # module plyvel is needed to support this type. This will store leveldb database to a single file database (sqlite3)
         path: leveldb  # path to leveldb. Must be relative path.
+        name: dest  # optional. path to the backup files. Shoule be a relative path
         domains:  # optional. Just backup minor domains in localstorage database. Only chromium is tested.
           - some domain
