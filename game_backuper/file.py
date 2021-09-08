@@ -21,12 +21,13 @@ def copy_file(loc: str, dest: str, name: str, prog: str):
     print(f'{prog}: Copyed {loc}({name}) -> {r}')
 
 
-def listdirs(loc: str):
+def listdirs(loc: str, ignore_hidden_files: bool = True):
     bl = listdir(loc)
     r = []
     for i in bl:
         if i.startswith('.'):
-            continue
+            if ignore_hidden_files or i == '.' or i == '..':
+                continue
         p = join(loc, i)
         if isfile(p):
             r.append(p)

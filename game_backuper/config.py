@@ -14,6 +14,7 @@ except ImportError:
 
 
 class BasicOption:
+    '''Basic options which is included in config, program and files.'''
     _remove_old_files = None
 
     @cached_property
@@ -45,6 +46,43 @@ class BasicOption:
             del v
 
 
+class NFBasicOption:
+    """Basic options which is included in config, program."""
+    _ignore_hidden_files = None
+
+    def __init__(self, cfg=None, prog=None):
+        self._cfg = cfg
+        self._prog = prog
+
+    @cached_property
+    def ignore_hidden_files(self) -> bool:
+        if self._ignore_hidden_files is not None:
+            return self._ignore_hidden_files
+        prog = getattr(self, "_prog", None)
+        if prog is not None:
+            if prog._ignore_hidden_files is not None:
+                return prog._ignore_hidden_files
+        cfg = getattr(self, "_cfg", None)
+        if cfg is not None:
+            if cfg._ignore_hidden_files is not None:
+                return cfg._ignore_hidden_files
+        return True
+
+    def parse_all_nf(self, data=None):
+        self.parse_ignore_hidden_files(data)
+
+    def parse_ignore_hidden_files(self, data=None):
+        if data is None:
+            data = getattr(self, 'data')
+        if 'ignore_hidden_files' in data:
+            v = data['ignore_hidden_files']
+            if isinstance(v, bool):
+                self._ignore_hidden_files = v
+            else:
+                raise TypeError('ignore_hidden_files option must be a bool.')
+            del v
+
+
 def namedtuple_bo(typename, field_names):
     a = namedtuple(typename, field_names)
     return type(typename, (a, BasicOption), {})
@@ -55,12 +93,13 @@ ConfigLeveldb = namedtuple_bo('ConfigLeveldb', ['name', 'full_path', 'domains'])
 ConfigResult = Union[ConfigNormalFile, ConfigLeveldb]
 
 
-class Program(BasicOption):
+class Program(BasicOption, NFBasicOption):
     def __init__(self, data: dict, cfg):
         self.data = data
         self._files = None
         self._cfg = cfg
         self.parse_all()
+        self.parse_all_nf()
 
     @cached_property
     def base(self) -> str:
@@ -94,9 +133,13 @@ class Program(BasicOption):
                     raise ValueError('Absolute path must need a name.')
                 bp = join(b, i)
                 if isfile(bp):
-                    r.append(ConfigNormalFile(i, bp))
+                    tname = relpath(join(b, i), b)
+                    r.append(ConfigNormalFile(tname, bp))
+                    del tname
                 elif isdir(bp):
-                    ll = listdirs(bp)
+                    top = NFBasicOption(self._cfg, self)
+                    ll = listdirs(bp, top.ignore_hidden_files)
+                    del top
                     for ii in ll:
                         r.append(ConfigNormalFile(relpath(ii, b), ii))
             elif isinstance(i, dict):
@@ -114,13 +157,20 @@ class Program(BasicOption):
                             if i['name'] != '':
                                 name = i['name']
                     if isfile(bp):
-                        tmp = ConfigNormalFile(name, bp)
+                        tname = relpath(join(b, name), b)
+                        tmp = ConfigNormalFile(tname, bp)
+                        del tname
                         tmp.parse_all(i)
                         r.append(tmp)
                     elif isdir(bp):
-                        ll = listdirs(bp)
+                        top = NFBasicOption(self._cfg, self)
+                        top.parse_ignore_hidden_files(i)
+                        ll = listdirs(bp, top.ignore_hidden_files)
+                        del top
                         for ii in ll:
-                            tmp = ConfigNormalFile(join(name, relpath(ii, bp)), ii)  # noqa: E501
+                            tname = relpath(join(b, join(name, relpath(ii, bp))), b)  # noqa: E501
+                            tmp = ConfigNormalFile(tname, ii)
+                            del tname
                             tmp.parse_all(i)
                             r.append(tmp)
                 elif t == 'leveldb':
@@ -143,10 +193,13 @@ class Program(BasicOption):
                                 dms.append(ii.encode())
                         if len(dms) == 0:
                             dms = None
-                    tmp = ConfigLeveldb(n, p, dms)
+                    tname = relpath(join(b, n), b)
+                    tmp = ConfigLeveldb(tname, p, dms)
+                    del tname
                     tmp.parse_all(i)
                     r.append(tmp)
         for i in r:
+            i._cfg = self._cfg
             i._prog = self
         return r
 
@@ -158,7 +211,7 @@ class Program(BasicOption):
                 return v
 
 
-class Config(BasicOption):
+class Config(BasicOption, NFBasicOption):
     dest = ''
     progs = []
     progs_name = []
@@ -176,6 +229,7 @@ class Config(BasicOption):
         if 'programs' not in t:
             raise ValueError("No programs found.")
         self.parse_all(t)
+        self.parse_all_nf(t)
         progs = t['programs']
         if not isinstance(progs, list):
             raise ValueError("programs should be list.")
