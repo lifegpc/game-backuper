@@ -111,6 +111,15 @@ class Db:
             for i in cur:
                 return File(*i)
 
+    def get_file_list(self, prog: str) -> List[str]:
+        with self._lock:
+            cur = self.db.execute('SELECT file FROM files WHERE program=?;',
+                                  (prog,))
+            li = []
+            for i in cur:
+                li.append(i[0])
+            return li
+
     def remove_file(self, id: Union[int, File]):
         with self._lock:
             ft = None

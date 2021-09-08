@@ -1,14 +1,18 @@
 dest: /path/to/store/backup/files  # The programs will store database and backup files in this location
+remove_old_files: true  # Optional. Default value: true. Remove unneeded backup files which already deleted in source tree when backuping files.
 programs:
   - name: Your program name  # This name is used to identify different application.
     base: /path/to/save/path  # Must be absoulte path.
+    remove_old_files: true  # Optional.
     files:
       - BGI.gdb  # path to a file/folder. All subfolders will include if it is a folder. Must be relative path.
       - type: path
         path: folder  # path to a file/folder. All subfolders will include if it is a folder. Must be relative path if name not found.
         name: folder2  # optional. path to the backup files. Shoule be a relative path
+        remove_old_files: true  # Optional.
       - type: leveldb  # module plyvel is needed to support this type. This will store leveldb database to a single file database (sqlite3)
         path: leveldb  # path to leveldb. Must be relative path.
         name: dest  # optional. path to the backup files. Shoule be a relative path
+        remove_old_files: true  # Optional.
         domains:  # optional. Just backup minor domains in localstorage database. Only chromium is tested.
           - some domain

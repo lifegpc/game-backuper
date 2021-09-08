@@ -26,9 +26,12 @@ class BackupTask(Thread):
         bp = join(self.cfg.dest, prog)
         if not exists(bp):
             mkdir(bp)
+        fl = self.db.get_file_list(prog)
         for f in self.prog.files:
             if isinstance(f, ConfigNormalFile):
                 if exists(f[1]):
+                    if f.name in fl:
+                        fl.remove(f.name)
                     ori = self.db.get_file(prog, f[0])
                     nf = new_file(f[1], f[0], prog)
                     if nf is None:
@@ -49,6 +52,8 @@ class BackupTask(Thread):
                     raise NotImplementedError('Leveldb is not supported.')
                 if not exists(f.full_path):
                     continue
+                if f.name in fl:
+                    fl.remove(f.name)
                 from game_backuper.leveldb import (
                     list_leveldb_entries,
                     leveldb_stats,
@@ -79,6 +84,20 @@ class BackupTask(Thread):
                     self.db.add_file(nf)
                 else:
                     self.db.set_file(ori.id, stats.size, stats.hash)
+        for fn in fl:
+            f = self.db.get_file(prog, fn)
+            if f.type is None:
+                de = join(bp, fn)
+                if exists(de):
+                    remove(de)
+                    print(f'{prog}: Remove {de}({fn})')
+                self.db.remove_file(f)
+            if f.type == FileType.LEVELDB:
+                de = join(bp, fn + '.db')
+                if exists(de):
+                    remove(de)
+                    print(f'{prog}: Remove {de}({fn})')
+                self.db.remove_file(f)
 
 
 class Backuper:

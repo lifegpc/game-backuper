@@ -7,19 +7,62 @@ from os.path import join, relpath, isfile, isdir, isabs
 from typing import List, Union
 from game_backuper.file import listdirs
 from collections import namedtuple
+try:
+    from functools import cached_property
+except ImportError:
+    cached_property = property
 
 
-ConfigNormalFile = namedtuple('ConfigNormalFile', ['name', 'full_path'])
-ConfigLeveldb = namedtuple('ConfigLeveldb', ['name', 'full_path', 'domains'])
+class BasicOption:
+    _remove_old_files = None
+
+    @cached_property
+    def remove_old_files(self) -> bool:
+        if self._remove_old_files is not None:
+            return self._remove_old_files
+        prog = getattr(self, "_prog", None)
+        if prog is not None:
+            if prog._remove_old_files is not None:
+                return prog._remove_old_files
+        cfg = getattr(self, "_cfg", None)
+        if cfg is not None:
+            if cfg._remove_old_files is not None:
+                return cfg._remove_old_files
+        return True
+
+    def parse_all(self, data=None):
+        self.parse_remove_old_files(data)
+
+    def parse_remove_old_files(self, data=None):
+        if data is None:
+            data = getattr(self, 'data')
+        if 'remove_old_files' in data:
+            v = data['remove_old_files']
+            if isinstance(v, bool):
+                self._remove_old_files = v
+            else:
+                raise TypeError('remove_old_files option must be a boolean.')
+            del v
+
+
+def namedtuple_bo(typename, field_names):
+    a = namedtuple(typename, field_names)
+    return type(typename, (a, BasicOption), {})
+
+
+ConfigNormalFile = namedtuple_bo('ConfigNormalFile', ['name', 'full_path'])
+ConfigLeveldb = namedtuple_bo('ConfigLeveldb', ['name', 'full_path', 'domains'])  # noqa: E501
 ConfigResult = Union[ConfigNormalFile, ConfigLeveldb]
 
 
-class Program:
-    def __init__(self, data: dict):
+class Program(BasicOption):
+    def __init__(self, data: dict, cfg):
         self.data = data
         self._files = None
+        self._cfg = cfg
+        self.parse_all()
 
-    @property
+    @cached_property
     def base(self) -> str:
         if 'base' in self.data:
             v = self.data['base']
@@ -71,11 +114,15 @@ class Program:
                             if i['name'] != '':
                                 name = i['name']
                     if isfile(bp):
-                        r.append(ConfigNormalFile(name, bp))
+                        tmp = ConfigNormalFile(name, bp)
+                        tmp.parse_all(i)
+                        r.append(tmp)
                     elif isdir(bp):
                         ll = listdirs(bp)
                         for ii in ll:
-                            r.append(ConfigNormalFile(join(name, relpath(ii, bp)), ii))  # noqa: E501
+                            tmp = ConfigNormalFile(join(name, relpath(ii, bp)), ii)  # noqa: E501
+                            tmp.parse_all(i)
+                            r.append(tmp)
                 elif t == 'leveldb':
                     if isabs(i['path']):
                         if 'name' not in i or not isinstance(i['name'], str) or i['name'] == '':  # noqa: E501
@@ -96,10 +143,14 @@ class Program:
                                 dms.append(ii.encode())
                         if len(dms) == 0:
                             dms = None
-                    r.append(ConfigLeveldb(n, p, dms))
+                    tmp = ConfigLeveldb(n, p, dms)
+                    tmp.parse_all(i)
+                    r.append(tmp)
+        for i in r:
+            i._prog = self
         return r
 
-    @property
+    @cached_property
     def name(self) -> str:
         if 'name' in self.data:
             v = self.data['name']
@@ -107,7 +158,7 @@ class Program:
                 return v
 
 
-class Config:
+class Config(BasicOption):
     dest = ''
     progs = []
     progs_name = []
@@ -124,11 +175,12 @@ class Config:
         self.dest = t['dest']
         if 'programs' not in t:
             raise ValueError("No programs found.")
+        self.parse_all(t)
         progs = t['programs']
         if not isinstance(progs, list):
             raise ValueError("programs should be list.")
         for prog in progs:
-            p = Program(prog)
+            p = Program(prog, self)
             if not p.check():
                 raise ValueError('Config error: program information error')
             if p.name not in self.progs_name:
