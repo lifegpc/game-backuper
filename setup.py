@@ -18,7 +18,7 @@ if "py2exe" in sys.argv:
             "py2exe": {
                 "optimize": 2,
                 "compressed": 1,
-                "excludes": ["pydoc"]
+                "excludes": ["pydoc", "unittest"]
             }
         },
         "zipfile": None,
