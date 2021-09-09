@@ -11,6 +11,7 @@ from os.path import exists, join, isdir
 from os import mkdir, remove
 from game_backuper.file import new_file, copy_file, File, mkdir_for_file
 from game_backuper.filetype import FileType
+from game_backuper.restorer import RestoreTask
 
 
 class BackupTask(Thread):
@@ -114,6 +115,10 @@ class Backuper:
             t.start()
         elif self.opts.action == OptAction.LIST:
             print(prog.name)
+        elif self.opts.action == OptAction.RESTORE:
+            t = RestoreTask(prog, self.db, self.conf)
+            self.tasks.append(t)
+            t.start()
 
     def run(self):
         if self.opts.action == OptAction.LIST_LEVELDB_KEY:

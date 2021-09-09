@@ -83,6 +83,79 @@ class NFBasicOption:
             del v
 
 
+# pylint: disable=unsupported-membership-test, unsubscriptable-object
+class BasicConfig:
+    def __repr__(self) -> str:
+        data = getattr(self, "data", None)
+        return f"{self.__class__.__name__}<{data}>"
+
+    @cached_property
+    def name(self) -> str:
+        data = getattr(self, "data", None)
+        if isinstance(data, dict) and 'name' in data:
+            v = data['name']
+            if isinstance(v, str) and len(v) > 0:
+                return v
+
+    @cached_property
+    def path(self) -> str:
+        data = getattr(self, "data", None)
+        if isinstance(data, dict) and 'path' in data:
+            v = data['path']
+            if isinstance(v, str) and len(v) > 0:
+                return v
+        raise ValueError('Path not found.')
+
+    @cached_property
+    def type(self) -> str:
+        data = getattr(self, "data", None)
+        if isinstance(data, dict) and 'type' in data:
+            v = data['type']
+            if isinstance(v, str) and len(v) > 0:
+                return v
+        raise ValueError('Type not found.')
+# pylint: enable=unsupported-membership-test, unsubscriptable-object
+
+
+class ConfigPath(BasicOption, NFBasicOption, BasicConfig):
+    def __init__(self, data, cfg, prog):
+        NFBasicOption.__init__(self, cfg, prog)
+        if isinstance(data, str):
+            self.data = {"path": data, "type": "path"}
+        elif isinstance(data, dict):
+            self.data = data
+        else:
+            raise TypeError('Must be str or dict.')
+        self.parse_all()
+        self.parse_all_nf()
+
+
+class ConfigOLeveldb(BasicOption, NFBasicOption, BasicConfig):
+    def __init__(self, data, cfg, prog):
+        NFBasicOption.__init__(self, cfg, prog)
+        if isinstance(data, dict):
+            self.data = data
+        else:
+            raise TypeError('Must be dict.')
+        self.parse_all()
+        self.parse_all_nf()
+
+    @cached_property
+    def ignore_hidden_files(self):
+        True
+
+    @cached_property
+    def domains(self) -> List[str]:
+        if 'domains' in self.data:
+            if isinstance(self.data['domains'], list):
+                dms = []
+                for i in self.data['domains']:
+                    if isinstance(i, str) and len(i) > 0:
+                        dms.append(i)
+                if len(dms) > 0:
+                    return dms
+
+
 def namedtuple_bo(typename, field_names):
     a = namedtuple(typename, field_names)
     return type(typename, (a, BasicOption), {})
@@ -91,6 +164,7 @@ def namedtuple_bo(typename, field_names):
 ConfigNormalFile = namedtuple_bo('ConfigNormalFile', ['name', 'full_path'])
 ConfigLeveldb = namedtuple_bo('ConfigLeveldb', ['name', 'full_path', 'domains'])  # noqa: E501
 ConfigResult = Union[ConfigNormalFile, ConfigLeveldb]
+ConfigOriginResult = Union[ConfigPath, ConfigOLeveldb]
 
 
 class Program(BasicOption, NFBasicOption):
@@ -100,6 +174,20 @@ class Program(BasicOption, NFBasicOption):
         self._cfg = cfg
         self.parse_all()
         self.parse_all_nf()
+
+    @cached_property
+    def all_configs(self) -> List[ConfigOriginResult]:
+        r = []
+        for i in self.data['files']:
+            if isinstance(i, str):
+                r.append(ConfigPath(i, self._cfg, self))
+            elif isinstance(i, dict):
+                t = i['type']
+                if t == 'path':
+                    r.append(ConfigPath(i, self._cfg, self))
+                elif t == 'leveldb':
+                    r.append(ConfigOLeveldb(i, self._cfg, self))
+        return r
 
     @cached_property
     def base(self) -> str:
@@ -202,6 +290,24 @@ class Program(BasicOption, NFBasicOption):
             i._cfg = self._cfg
             i._prog = self
         return r
+
+    def get_config(self, name: str) -> ConfigOriginResult:
+        for i in self.data['files']:
+            if isinstance(i, str):
+                if not relpath(name, i).startswith('..'):
+                    return ConfigPath(i, self._cfg, self)
+            elif isinstance(i, dict):
+                t = i['type']
+                if t == 'path':
+                    if isabs(i['path']):
+                        n = i['name']
+                    else:
+                        n = i['path']
+                        if 'name' in i and isinstance(i['name'], str):
+                            if i['name'] != '':
+                                n = i['name']
+                    if not relpath(name, n).startswith('..'):
+                        return ConfigPath(i, self._cfg, self)
 
     @cached_property
     def name(self) -> str:

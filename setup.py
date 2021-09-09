@@ -1,7 +1,7 @@
 # flake8: noqa
 import sys
 from game_backuper import __version__
-if len(sys.argv) == 2 and sys.argv[1] == "py2exe":
+if "py2exe" in sys.argv:
     from distutils.core import setup
     import py2exe
     params = {
@@ -29,7 +29,11 @@ else:
         "install_requires": ["pyyaml"],
         'entry_points': {
             'console_scripts': ['game-backuper = game_backuper:start']
-        }
+        },
+        "extras_require": {
+            "leveldb": "plyvel"
+        },
+        "python_requires": ">=3.6"
     }
 setup(
     name="game-backuper",

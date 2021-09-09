@@ -1,9 +1,10 @@
 from collections import namedtuple
-from os.path import exists, dirname, abspath, isfile, isdir, join
+from os.path import exists, dirname, abspath, isfile, isdir, join, isabs
 from os import stat, makedirs, listdir
 from game_backuper.hashl import sha512
 from shutil import copy2
 from game_backuper.filetype import FileType
+from os import remove
 
 
 File = namedtuple('File', ['id', 'file', 'size', 'program', 'hash', 'type'])
@@ -36,9 +37,40 @@ def listdirs(loc: str, ignore_hidden_files: bool = True):
     return r
 
 
+def list_all_paths(base: str, cli):
+    from game_backuper.config import ConfigPath, ConfigOLeveldb
+    r = []
+    for c in cli:
+        if isinstance(c, ConfigPath):
+            if isabs(c.path):
+                bp = c.path
+            else:
+                bp = join(base, c.path)
+            if isfile(bp):
+                r.append(bp)
+            elif isdir(bp):
+                r += listdirs(bp, c.ignore_hidden_files)
+        elif isinstance(c, ConfigOLeveldb):
+            r.append(c.path if isabs(c.path) else join(base, c.path))
+    return r
+
+
 def new_file(loc: str, name: str, prog: str, type: FileType = None) -> File:
     if exists(loc):
         fs = stat(loc).st_size
         with open(loc, 'rb') as f:
             hs = sha512(f)
         return File(None, name, fs, prog, hs, type)
+
+
+def remove_dirs(loc: str):
+    bl = listdirs(loc, False)
+    for i in bl:
+        if isfile(i):
+            remove(i)
+        elif isdir(i):
+            try:
+                remove_dirs(i)
+            except Exception:
+                remove_dirs(i)
+    remove(loc)
