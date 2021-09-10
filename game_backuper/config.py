@@ -98,6 +98,10 @@ class BasicConfig:
                 return v
 
     @cached_property
+    def real_name(self) -> str:
+        return self.name if self.name else self.path
+
+    @cached_property
     def path(self) -> str:
         data = getattr(self, "data", None)
         if isinstance(data, dict) and 'path' in data:
@@ -151,7 +155,7 @@ class ConfigOLeveldb(BasicOption, NFBasicOption, BasicConfig):
                 dms = []
                 for i in self.data['domains']:
                     if isinstance(i, str) and len(i) > 0:
-                        dms.append(i)
+                        dms.append(i.encode())
                 if len(dms) > 0:
                     return dms
 
@@ -308,6 +312,9 @@ class Program(BasicOption, NFBasicOption):
                                 n = i['name']
                     if not relpath(name, n).startswith('..'):
                         return ConfigPath(i, self._cfg, self)
+                elif t == 'leveldb':
+                    if relpath(i['name'], name) == '.':
+                        return ConfigOLeveldb(i, self._cfg, self)
 
     @cached_property
     def name(self) -> str:
