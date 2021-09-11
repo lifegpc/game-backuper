@@ -1,6 +1,6 @@
 # flake8: noqa
 import sys
-from game_backuper import __version__
+from version import version, dversion
 from setuptools import Extension
 try:
     from Cython.Build import cythonize
@@ -17,9 +17,9 @@ if "py2exe" in sys.argv:
         "console": [{
             'script': "game_backuper/__main__.py",
             "dest_base": 'game-backuper',
-            'version': __version__,
+            'version': version,
             'product_name': 'game-backuper',
-            'product_version': __version__,
+            'product_version': dversion,
             'company_name': 'lifegpc',
             'description': 'A game backuper',
         }],
@@ -46,7 +46,7 @@ else:
     }
 setup(
     name="game-backuper",
-    version=__version__,
+    version=version,
     url="https://github.com/lifegpc/game-backuper",
     author="lifegpc",
     author_email="g1710431395@gmail.com",
