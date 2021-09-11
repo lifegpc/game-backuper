@@ -3,7 +3,7 @@ try:
     from yaml import CSafeLoader as SafeLoader
 except Exception:
     from yaml import SafeLoader
-from os.path import join, relpath, isfile, isdir, isabs
+from os.path import join, relpath, isfile, isdir, isabs, abspath
 from typing import List, Union
 from game_backuper.file import listdirs
 from collections import namedtuple
@@ -11,11 +11,27 @@ try:
     from functools import cached_property
 except ImportError:
     cached_property = property
+from game_backuper.regexp import Regex, wildcards_to_regex
 
 
 class BasicOption:
     '''Basic options which is included in config, program and files.'''
     _remove_old_files = None
+    _enable_pcre2 = None
+
+    @cached_property
+    def enable_pcre2(self) -> bool:
+        if self._enable_pcre2 is not None:
+            return self._enable_pcre2
+        prog = getattr(self, "_prog", None)
+        if prog is not None:
+            if prog._enable_pcre2 is not None:
+                return prog._enable_pcre2
+        cfg = getattr(self, "_cfg", None)
+        if cfg is not None:
+            if cfg._enable_pcre2 is not None:
+                return cfg._enable_pcre2
+        return False
 
     @cached_property
     def remove_old_files(self) -> bool:
@@ -33,6 +49,18 @@ class BasicOption:
 
     def parse_all(self, data=None):
         self.parse_remove_old_files(data)
+        self.parse_enable_pcre2(data)
+
+    def parse_enable_pcre2(self, data=None):
+        if data is None:
+            data = getattr(self, 'data')
+        if 'enable_pcre2' in data:
+            v = data['enable_pcre2']
+            if isinstance(v, bool):
+                self._enable_pcre2 = v
+            else:
+                raise TypeError('enable_pcre2 option must be a boolean.')
+            del v
 
     def parse_remove_old_files(self, data=None):
         if data is None:
@@ -133,6 +161,53 @@ class ConfigPath(BasicOption, NFBasicOption, BasicConfig):
         self.parse_all()
         self.parse_all_nf()
 
+    @property
+    def excludes(self) -> List[Union[str, Regex]]:
+        t = getattr(self, "__excludes", None)
+        if t is not None:
+            return t
+        del t
+        if 'excludes' in self.data:
+            if isinstance(self.data['excludes'], list):
+                r = []
+                for i in self.data["excludes"]:
+                    if isinstance(i, str):
+                        r.append(i)
+                    elif isinstance(i, dict):
+                        t = i['type']
+                        if t == 'wildcards':
+                            r.append(wildcards_to_regex(i['rule'], use_pcre2=self.enable_pcre2))  # noqa: E501
+                        elif t == "regex":
+                            r.append(Regex(i['rule'],
+                                           use_pcre2=self.enable_pcre2))
+                self.__excludes = r
+                return r
+
+    def is_exclude(self, b: str, loc: str) -> bool:
+        e = self.excludes
+        if e is None:
+            return False
+        if isabs(loc):
+            bl = abspath(loc)
+            rl = relpath(loc, b)
+        else:
+            bl = abspath(join(b, loc))
+            rl = relpath(join(b, loc), b)
+        for i in e:
+            if isinstance(i, str):
+                if isabs(i):
+                    if abspath(i) == bl:
+                        return True
+                else:
+                    if relpath(join(b, i), b) == rl:
+                        return True
+            elif isinstance(i, Regex):
+                if i.match_only(rl):
+                    return True
+                elif bl != loc and i.match_only(bl):
+                    return True
+        return False
+
 
 class ConfigOLeveldb(BasicOption, NFBasicOption, BasicConfig):
     def __init__(self, data, cfg, prog):
@@ -218,78 +293,44 @@ class Program(BasicOption, NFBasicOption):
             return self._files.copy()
         r = []
         self._files = r.copy()
-        for i in self.data[ke]:
+        for i in self.all_configs:
             b = self.base
-            if isinstance(i, str):
-                if isabs(i):
-                    raise ValueError('Absolute path must need a name.')
-                bp = join(b, i)
+            if isinstance(i, ConfigPath):
+                if isabs(i.path):
+                    bp = i.path
+                else:
+                    bp = join(b, i.path)
+                name = i.real_name
                 if isfile(bp):
-                    tname = relpath(join(b, i), b)
-                    r.append(ConfigNormalFile(tname, bp))
+                    tname = relpath(join(b, name), b)
+                    tmp = ConfigNormalFile(tname, bp)
                     del tname
+                    tmp.parse_all(i.data)
+                    r.append(tmp)
                 elif isdir(bp):
                     top = NFBasicOption(self._cfg, self)
+                    top.parse_ignore_hidden_files(i.data)
                     ll = listdirs(bp, top.ignore_hidden_files)
                     del top
                     for ii in ll:
-                        r.append(ConfigNormalFile(relpath(ii, b), ii))
-            elif isinstance(i, dict):
-                t = i['type']
-                if t == 'path':
-                    if isabs(i['path']):
-                        if 'name' not in i or not isinstance(i['name'], str) or i['name'] == '':  # noqa: E501
-                            raise ValueError('Absolute path must need a name.')
-                        bp = i['path']
-                        name = i['name']
-                    else:
-                        bp = join(b, i['path'])
-                        name = i['path']
-                        if 'name' in i and isinstance(i['name'], str):
-                            if i['name'] != '':
-                                name = i['name']
-                    if isfile(bp):
-                        tname = relpath(join(b, name), b)
-                        tmp = ConfigNormalFile(tname, bp)
+                        if i.is_exclude(bp, ii):
+                            continue
+                        tname = relpath(join(b, join(name, relpath(ii, bp))), b)  # noqa: E501
+                        tmp = ConfigNormalFile(tname, ii)
                         del tname
-                        tmp.parse_all(i)
+                        tmp.parse_all(i.data)
                         r.append(tmp)
-                    elif isdir(bp):
-                        top = NFBasicOption(self._cfg, self)
-                        top.parse_ignore_hidden_files(i)
-                        ll = listdirs(bp, top.ignore_hidden_files)
-                        del top
-                        for ii in ll:
-                            tname = relpath(join(b, join(name, relpath(ii, bp))), b)  # noqa: E501
-                            tmp = ConfigNormalFile(tname, ii)
-                            del tname
-                            tmp.parse_all(i)
-                            r.append(tmp)
-                elif t == 'leveldb':
-                    if isabs(i['path']):
-                        if 'name' not in i or not isinstance(i['name'], str) or i['name'] == '':  # noqa: E501
-                            raise ValueError('Absolute path must need a name.')
-                        p = i['path']
-                        n = i['name']
-                    else:
-                        p = join(b, i['path'])
-                        n = i['path']
-                        if 'name' in i and isinstance(i['name'], str):
-                            if i['name'] != '':
-                                n = i['name']
-                    dms = None
-                    if 'domains' in i and isinstance(i['domains'], list):
-                        dms = []
-                        for ii in i['domains']:
-                            if isinstance(ii, str) and len(ii) > 0:
-                                dms.append(ii.encode())
-                        if len(dms) == 0:
-                            dms = None
-                    tname = relpath(join(b, n), b)
-                    tmp = ConfigLeveldb(tname, p, dms)
-                    del tname
-                    tmp.parse_all(i)
-                    r.append(tmp)
+            elif isinstance(i, ConfigOLeveldb):
+                if isabs(i.path):
+                    p = i.path
+                else:
+                    p = join(b, i.path)
+                name = i.real_name
+                tname = relpath(join(b, name), b)
+                tmp = ConfigLeveldb(tname, p, i.domains)
+                del tname
+                tmp.parse_all(i.data)
+                r.append(tmp)
         for i in r:
             i._cfg = self._cfg
             i._prog = self

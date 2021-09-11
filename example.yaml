@@ -1,9 +1,11 @@
 dest: /path/to/store/backup/files  # The programs will store database and backup files in this location
+enable_pcre2: false  # Optional. Default value: false. Try to use PCRE2 first. PCRE2 may be a little slower than internal regex library.
 remove_old_files: true  # Optional. Default value: true. Remove unneeded backup files which already deleted in source tree when backuping files.
 ignore_hidden_files: true  # Optional. Default value: true. Whether to ignore files which its name starts with ".". Only effect folder which type is "path".
 programs:
   - name: Your program name  # This name is used to identify different application.
     base: /path/to/save/path  # Must be absoulte path.
+    enable_pcre2: false  # Optional.
     remove_old_files: true  # Optional.
     ignore_hidden_files: true  # Optional.
     files:
@@ -11,11 +13,20 @@ programs:
       - type: path
         path: folder  # path to a file/folder. All subfolders will include if it is a folder. Must be relative path if name not found.
         name: folder2  # optional. path to the backup files. Shoule be a relative path
+        enable_pcre2: false
         remove_old_files: true  # Optional.
         ignore_hidden_files: true  # Optional.
+        excludes:  # Optional. Exculde some files/folders
+          - data.db  # Releative path
+          - /path/to/data.db  # Absolute path
+          - type: wildcards
+            rule: "*/*.db"
+          - type: regex
+            rule: "\\d+\\.db"
       - type: leveldb  # module plyvel is needed to support this type. This will store leveldb database to a single file database (sqlite3)
         path: leveldb  # path to leveldb. Must be relative path.
         name: dest  # optional. path to the backup files. Shoule be a relative path
+        enable_pcre2: false
         remove_old_files: true  # Optional.
         domains:  # optional. Just backup minor domains in localstorage database. Only chromium is tested.
           - some domain

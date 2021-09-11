@@ -1,6 +1,15 @@
 # flake8: noqa
 import sys
 from game_backuper import __version__
+from setuptools import Extension
+try:
+    from Cython.Build import cythonize
+except ImportError:
+    def cythonize(li):
+        return []
+
+ext_modules = [Extension("game_backuper._pcre2", ["game_backuper/_pcre2.pyx"], libraries=["pcre2-8"])]
+
 if "py2exe" in sys.argv:
     from distutils.core import setup
     import py2exe
@@ -50,5 +59,6 @@ setup(
     long_description="A game backuper",
     keywords="backup",
     packages=["game_backuper"],
+    ext_modules=cythonize(ext_modules, compiler_directives={'language_level': "3"}),
     **params
 )
