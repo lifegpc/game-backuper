@@ -8,12 +8,13 @@ from game_backuper.config import (
 from game_backuper.cml import Opts, OptAction
 from threading import Thread
 from os.path import exists, join, isdir
-from os import mkdir, remove
+from os import mkdir, remove, close
 from game_backuper.file import new_file, copy_file, File, mkdir_for_file
 from game_backuper.filetype import FileType
 from game_backuper.restorer import RestoreTask
 from game_backuper.file import remove_compress_files
 from game_backuper.compress import compress
+from tempfile import mkstemp
 
 
 class BackupTask(Thread):
@@ -82,22 +83,42 @@ class BackupTask(Thread):
                 ent = list_leveldb_entries(f.full_path, f.domains)
                 stats = leveldb_stats(f.full_path, ent)
                 ori = self.db.get_file(prog, f.name)
+                c = f.compress_config
                 de = join(bp, f.name + ".db")
                 if ori is not None:
-                    if ori.size == stats.size and ori.hash == stats.hash:
-                        print(f'{prog}: Skip {f[0]}')
-                        continue
                     if ori.type is None or ori.type != FileType.LEVELDB:
                         pp = join(bp, ori.file)
                         if exists(pp):
                             remove(pp)
+                            remove_compress_files(pp, prog, f.name)
                         self.db.remove_file(ori)
                         ori = None
-                if exists(de):
-                    remove(de)
+                if ori is not None:
+                    if ori.size == stats.size and ori.hash == stats.hash:
+                        if c is None:
+                            if exists(de):
+                                print(f'{prog}: Skip {f[0]}')
+                                remove_compress_files(de, prog, f.name)
+                                continue
+                        else:
+                            if exists(de + c.ext):
+                                print(f'{prog}: Skip {f.name}')
+                                remove_compress_files(de, prog, f.name, c.ext)
+                                continue
                 mkdir_for_file(de)
-                leveldb_to_sqlite(f.full_path, de, ent)
-                print(f'{prog}: Covert leveldb done. {f.full_path}({f.name}) -> {de}')  # noqa: E501
+                if c is None:
+                    leveldb_to_sqlite(f.full_path, de, ent)
+                    print(f'{prog}: Covert leveldb done. {f.full_path}({f.name}) -> {de}')  # noqa: E501
+                    remove_compress_files(de, prog, f.name)
+                else:
+                    tmp = mkstemp()
+                    close(tmp[0])
+                    tmp = tmp[1]
+                    leveldb_to_sqlite(f.full_path, tmp, ent)
+                    print(f'{prog}: Covert leveldb done. {f.full_path}({f.name}) -> {tmp}')  # noqa: E501
+                    compress(tmp, de, c, f.name, prog)
+                    remove(tmp)
+                    print(f'{prog}: Removed tempfile {tmp}')
                 if ori is None:
                     nf = File(None, f.name, stats.size, prog, stats.hash,
                               FileType.LEVELDB)

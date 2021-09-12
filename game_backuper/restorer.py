@@ -9,9 +9,10 @@ from game_backuper.file import (
     new_file,
     mkdir_for_file,
 )
-from os import remove
+from os import remove, close
 from game_backuper.filetype import FileType
 from game_backuper.compress import decompress
+from tempfile import mkstemp
 
 
 class RestoreTask(Thread):
@@ -65,13 +66,14 @@ class RestoreTask(Thread):
                     raise ValueError('Type dismatched.')
                 nam = r.real_name
                 src = join(self.cfg.dest, prog, fn + '.db')
+                c = r.compress_config
                 if isabs(r.path):
                     dest = r.path
                 else:
                     dest = join(b, r.path)
                 if dest in pl:
                     pl.remove(dest)
-                if not exists(src):
+                if (c is None and not exists(src)) or (c is not None and not exists(src + c.ext)):  # noqa: E501
                     print(f'{prog}: Warn: Can not find backup files: "{src}"({fn})')  # noqa: E501
                     continue
                 from game_backuper.leveldb import (
@@ -86,8 +88,18 @@ class RestoreTask(Thread):
                         print(f'{prog}: Skip {fn}')
                         continue
                 mkdir_for_file(dest)
-                sqlite_to_leveldb(src, dest, r.domains)
-                print(f'{prog}: Covert leveldb done. {src}({fn}) -> {dest}')
+                if c is None:
+                    sqlite_to_leveldb(src, dest, r.domains)
+                    print(f'{prog}: Covert leveldb done. {src}({fn}) -> {dest}')  # noqa: E501
+                else:
+                    tmp = mkstemp()
+                    close(tmp[0])
+                    tmp = tmp[1]
+                    decompress(src, tmp, c, fn, prog)
+                    sqlite_to_leveldb(tmp, dest, r.domains)
+                    print(f'{prog}: Covert leveldb done. {tmp}({fn}) -> {dest}')  # noqa: E501
+                    remove(tmp)
+                    print(f'{prog}: Removed tempfile {tmp}')
         for i in pl:
             if isfile(i):
                 remove(i)
