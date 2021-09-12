@@ -40,7 +40,8 @@ else:
             'console_scripts': ['game-backuper = game_backuper:start']
         },
         "extras_require": {
-            "leveldb": "plyvel"
+            "leveldb": "plyvel",
+            "lzip": "lzip",
         },
         "python_requires": ">=3.6"
     }

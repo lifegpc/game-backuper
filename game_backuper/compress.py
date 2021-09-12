@@ -13,6 +13,14 @@ try:
     have_lzma = True
 except ImportError:
     have_lzma = False
+try:
+    from lzip import (
+        FileEncoder as LZIPFileEncoder,
+        decompress_file_iter as LZIP_decompress_file_iter,
+    )
+    have_lzip = True
+except ImportError:
+    have_lzip = False
 from enum import IntEnum, unique
 try:
     from functools import cached_property
@@ -27,6 +35,7 @@ class CompressMethod(IntEnum):
     BZIP2 = 0
     GZIP = 1
     LZMA = 2
+    LZIP = 3
 
     @staticmethod
     def from_str(v: str) -> IntEnum:
@@ -38,6 +47,8 @@ class CompressMethod(IntEnum):
                 return CompressMethod.GZIP
             elif t == "lzma":
                 return CompressMethod.LZMA
+            elif t == "lzip":
+                return CompressMethod.LZIP
         else:
             raise TypeError('Must be str.')
 
@@ -80,6 +91,17 @@ class CompressConfig:
                 else:
                     raise ValueError('lzma: compress_level should be 0-9.')
             self._ext = ".xz"
+        elif self._method == CompressMethod.LZIP:
+            if not have_lzip:
+                raise NotImplementedError("lzip not supported.")
+            if level is None:
+                self._level = 6
+            else:
+                if isinstance(level, int) and level >= 0 and level <= 9:
+                    self._level = level
+                else:
+                    raise ValueError('lzip: compress_level should be 0-9.')
+            self._ext = ".lz"
         self._chunk_size = 1048576
 
     def __repr__(self):
@@ -110,6 +132,8 @@ if have_gzip:
     supported_exts.append('.gz')
 if have_lzma:
     supported_exts.append('.xz')
+if have_lzip:
+    supported_exts.append('.lz')
 
 
 def sizeof_fmt(num, suffix='B'):
@@ -155,6 +179,14 @@ def compress(src: str, dest: str, c: CompressConfig, name: str, prog: str):
                     f.write(a)
                     a = t.read(cs)
                 del a
+    elif c.method == CompressMethod.LZIP:
+        with open(src, 'rb') as t:
+            with LZIPFileEncoder(fn, c.level) as f:
+                a = t.read(cs)
+                while a != b'':
+                    f.compress(a)
+                    a = t.read(cs)
+                del a
     i = compress_info(getsize(src), getsize(fn))
     print(f'{prog}: Compressed {src}({name}) -> {fn} ({i})')
     del i
@@ -194,5 +226,11 @@ def decompress(src: str, dest: str, c: CompressConfig, name: str, prog: str):
                     t.write(a)
                     a = f.read(cs)
                 del a
+    elif c.method == CompressMethod.LZIP:
+        with open(dest, 'wb') as t:
+            f = LZIP_decompress_file_iter(fn, chunk_size=cs)
+            for a in f:
+                t.write(a)
+            del a
     i = compress_info(getsize(dest), getsize(fn))
     print(f'{prog}: Decompressed {fn}({name}) -> {dest} ({i})')
