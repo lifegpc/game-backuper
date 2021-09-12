@@ -21,6 +21,14 @@ try:
     have_lzip = True
 except ImportError:
     have_lzip = False
+try:
+    from game_backuper.zstd import (
+        ZSTDFile,
+        MAX_COMPRESS_LEVEL as ZSTD_MAX
+    )
+    have_zstd = True
+except ImportError:
+    have_zstd = False
 from enum import IntEnum, unique
 try:
     from functools import cached_property
@@ -36,6 +44,7 @@ class CompressMethod(IntEnum):
     GZIP = 1
     LZMA = 2
     LZIP = 3
+    ZSTD = 4
 
     @staticmethod
     def from_str(v: str) -> IntEnum:
@@ -49,6 +58,8 @@ class CompressMethod(IntEnum):
                 return CompressMethod.LZMA
             elif t == "lzip":
                 return CompressMethod.LZIP
+            elif t == "zstd":
+                return CompressMethod.ZSTD
         else:
             raise TypeError('Must be str.')
 
@@ -102,6 +113,17 @@ class CompressConfig:
                 else:
                     raise ValueError('lzip: compress_level should be 0-9.')
             self._ext = ".lz"
+        elif self._method == CompressMethod.ZSTD:
+            if not have_zstd:
+                raise NotImplementedError("zstd not supported.")
+            if level is None:
+                self._level = 3
+            else:
+                if isinstance(level, int) and level >= 0 and level <= ZSTD_MAX:
+                    self._level = level
+                else:
+                    raise ValueError(f'zstd: compress_level should be 0-{ZSTD_MAX}.')  # noqa: E501
+            self._ext = ".zst"
         self._chunk_size = 131072
 
     def __repr__(self):
@@ -134,6 +156,8 @@ if have_lzma:
     supported_exts.append('.xz')
 if have_lzip:
     supported_exts.append('.lz')
+if have_zstd:
+    supported_exts.append('.zst')
 
 
 def sizeof_fmt(num, suffix='B'):
@@ -187,6 +211,14 @@ def compress(src: str, dest: str, c: CompressConfig, name: str, prog: str):
                     f.compress(a)
                     a = t.read(cs)
                 del a
+    elif c.method == CompressMethod.ZSTD:
+        with open(src, 'rb') as t:
+            with ZSTDFile(fn, 'wb', compresslevel=c.level) as f:
+                a = t.read(cs)
+                while a != b'':
+                    f.write(a)
+                    a = t.read(cs)
+                del a
     i = compress_info(getsize(src), getsize(fn))
     print(f'{prog}: Compressed {src}({name}) -> {fn} ({i})')
     del i
@@ -232,5 +264,13 @@ def decompress(src: str, dest: str, c: CompressConfig, name: str, prog: str):
             for a in f:
                 t.write(a)
             del a
+    elif c.method == CompressMethod.ZSTD:
+        with ZSTDFile(fn, 'rb') as f:
+            with open(dest, 'wb') as t:
+                a = f.read(cs)
+                while a != b'':
+                    t.write(a)
+                    a = f.read(cs)
+                del a
     i = compress_info(getsize(dest), getsize(fn))
     print(f'{prog}: Decompressed {fn}({name}) -> {dest} ({i})')
