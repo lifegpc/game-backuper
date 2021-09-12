@@ -11,6 +11,7 @@ from game_backuper.file import (
 )
 from os import remove
 from game_backuper.filetype import FileType
+from game_backuper.compress import decompress
 
 
 class RestoreTask(Thread):
@@ -34,6 +35,7 @@ class RestoreTask(Thread):
                     raise ValueError('Type dismatched.')
                 nam = r.real_name
                 src = join(self.cfg.dest, prog, fn)
+                c = r.compress_config
                 tmp = relpath(fn, nam)
                 if isabs(r.path):
                     dest = r.path
@@ -43,7 +45,7 @@ class RestoreTask(Thread):
                     dest = join(dest, tmp)
                 if dest in pl:
                     pl.remove(dest)
-                if not exists(src):
+                if (c is None and not exists(src)) or (c is not None and not exists(src + c.ext)):  # noqa: E501
                     print(f'{prog}: Warn: Can not find backup files: "{src}"({fn})')  # noqa: E501
                     continue
                 if exists(dest):
@@ -51,7 +53,10 @@ class RestoreTask(Thread):
                     if tf.size == f.size and tf.hash == f.hash:
                         print(f'{prog}: Skip {fn}')
                         continue
-                copy_file(src, dest, nam, prog)
+                if c is None:
+                    copy_file(src, dest, nam, prog)
+                else:
+                    decompress(src, dest, c, nam, prog)
             elif isinstance(r, ConfigOLeveldb):
                 from game_backuper.leveldb import have_leveldb
                 if not have_leveldb:

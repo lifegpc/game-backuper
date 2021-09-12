@@ -12,6 +12,8 @@ from os import mkdir, remove
 from game_backuper.file import new_file, copy_file, File, mkdir_for_file
 from game_backuper.filetype import FileType
 from game_backuper.restorer import RestoreTask
+from game_backuper.file import remove_compress_files
+from game_backuper.compress import compress
 
 
 class BackupTask(Thread):
@@ -33,6 +35,7 @@ class BackupTask(Thread):
                 if exists(f[1]):
                     if f.name in fl:
                         fl.remove(f.name)
+                    c = f.compress_config
                     ori = self.db.get_file(prog, f[0])
                     nf = new_file(f[1], f[0], prog)
                     if nf is None:
@@ -40,12 +43,28 @@ class BackupTask(Thread):
                     de = join(bp, f[0])
                     if ori is not None:
                         if ori.size == nf.size and ori.hash == nf.hash:
-                            print(f'{prog}: Skip {f[0]}.')
-                            continue
-                        copy_file(f[1], de, f[0], prog)
+                            if c is None:
+                                if exists(de):
+                                    print(f'{prog}: Skip {f[0]}.')
+                                    remove_compress_files(de, prog, f.name)
+                                    continue
+                            else:
+                                if exists(de + c.ext):
+                                    print(f'{prog}: Skip {f.name}.')
+                                    remove_compress_files(de, prog, f.name, c.ext)  # noqa: E501
+                                    continue
+                        if c is None:
+                            copy_file(f[1], de, f[0], prog)
+                            remove_compress_files(de, prog, f.name)
+                        else:
+                            compress(f[1], de, c, f.name, prog)
                         self.db.set_file(ori.id, nf.size, nf.hash)
                     else:
-                        copy_file(f[1], de, f[0], prog)
+                        if c is None:
+                            copy_file(f[1], de, f[0], prog)
+                            remove_compress_files(de, prog, f.name)
+                        else:
+                            compress(f[1], de, c, f.name, prog)
                         self.db.add_file(nf)
             elif isinstance(f, ConfigLeveldb):
                 from game_backuper.leveldb import have_leveldb

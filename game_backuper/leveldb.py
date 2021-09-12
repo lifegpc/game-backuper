@@ -11,6 +11,8 @@ if have_leveldb:
     from base64 import b85encode
     from collections import namedtuple
     from sqlite3 import connect
+    from os.path import exists
+    from os import remove
     LeveldbStats = namedtuple('LeveldbStats', ['hash', 'size'])
     MAP_TABLE = '''CREATE TABLE map (
     key TEXT,
@@ -60,6 +62,8 @@ if have_leveldb:
 
     def leveldb_to_sqlite(db: str, dest: str, entries: List[bytes]):
         d = DB(db)
+        if exists(dest):
+            remove(dest)
         s = connect(dest)
         s.text_factory = bytes
         s.execute(MAP_TABLE)

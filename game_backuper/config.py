@@ -12,12 +12,28 @@ try:
 except ImportError:
     cached_property = property
 from game_backuper.regexp import Regex, wildcards_to_regex
+from game_backuper.compress import CompressConfig
 
 
 class BasicOption:
     '''Basic options which is included in config, program and files.'''
     _remove_old_files = None
     _enable_pcre2 = None
+    _compress_config = None
+
+    @property
+    def compress_config(self) -> CompressConfig:
+        if self._compress_config is not None:
+            return self._compress_config
+        prog = getattr(self, "_prog", None)
+        if prog is not None:
+            if prog._compress_config is not None:
+                return prog._compress_config
+        cfg = getattr(self, "_cfg", None)
+        if cfg is not None:
+            if cfg._compress_config is not None:
+                return cfg._compress_config
+        return None
 
     @cached_property
     def enable_pcre2(self) -> bool:
@@ -48,8 +64,19 @@ class BasicOption:
         return True
 
     def parse_all(self, data=None):
+        self.parse_compress_config(data)
         self.parse_remove_old_files(data)
         self.parse_enable_pcre2(data)
+
+    def parse_compress_config(self, data=None):
+        if data is None:
+            data = getattr(self, 'data')
+        if 'compress_method' in data:
+            v = data['compress_method']
+            if isinstance(v, str):
+                self._compress_config = CompressConfig(v, data.get("compress_level"))  # noqa: E501
+            elif v is not None:
+                raise TypeError('compress_method option should be str or None.')  # noqa: E501
 
     def parse_enable_pcre2(self, data=None):
         if data is None:
