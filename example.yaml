@@ -16,9 +16,16 @@ programs:
         enable_pcre2: false
         remove_old_files: true  # Optional.
         ignore_hidden_files: true  # Optional.
-        excludes:  # Optional. Exculde some files/folders
+        excludes:  # Optional. Exculde some files. Only effected when path is a folder.
           - data.db  # Releative path
           - /path/to/data.db  # Absolute path
+          - type: wildcards
+            rule: "*/*.db"
+          - type: regex
+            rule: "\\d+\\.db"
+        includes:  # Optional. Only include some files. Only effected when path is a folder.
+          - data.db
+          - /path/to/data.db
           - type: wildcards
             rule: "*/*.db"
           - type: regex

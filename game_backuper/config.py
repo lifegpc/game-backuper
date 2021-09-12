@@ -149,6 +149,20 @@ class BasicConfig:
 # pylint: enable=unsupported-membership-test, unsubscriptable-object
 
 
+def parse_ex_or_in_cludes(li: list, enable_pcre2) -> List[Union[str, Regex]]:
+    r = []
+    for i in li:
+        if isinstance(i, str):
+            r.append(i)
+        elif isinstance(i, dict):
+            t = i['type']
+            if t == 'wildcards':
+                r.append(wildcards_to_regex(i['rule'], use_pcre2=enable_pcre2))
+            elif t == "regex":
+                r.append(Regex(i['rule'], use_pcre2=enable_pcre2))
+    return r
+
+
 class ConfigPath(BasicOption, NFBasicOption, BasicConfig):
     def __init__(self, data, cfg, prog):
         NFBasicOption.__init__(self, cfg, prog)
@@ -169,24 +183,26 @@ class ConfigPath(BasicOption, NFBasicOption, BasicConfig):
         del t
         if 'excludes' in self.data:
             if isinstance(self.data['excludes'], list):
-                r = []
-                for i in self.data["excludes"]:
-                    if isinstance(i, str):
-                        r.append(i)
-                    elif isinstance(i, dict):
-                        t = i['type']
-                        if t == 'wildcards':
-                            r.append(wildcards_to_regex(i['rule'], use_pcre2=self.enable_pcre2))  # noqa: E501
-                        elif t == "regex":
-                            r.append(Regex(i['rule'],
-                                           use_pcre2=self.enable_pcre2))
+                r = parse_ex_or_in_cludes(self.data["excludes"], self.enable_pcre2)  # noqa: E501
                 self.__excludes = r
                 return r
 
-    def is_exclude(self, b: str, loc: str) -> bool:
-        e = self.excludes
+    @property
+    def includes(self) -> List[Union[str, Regex]]:
+        t = getattr(self, "__includes", None)
+        if t is not None:
+            return t
+        del t
+        if 'includes' in self.data:
+            if isinstance(self.data['includes'], list):
+                r = parse_ex_or_in_cludes(self.data["includes"], self.enable_pcre2)  # noqa: E501
+                self.__includes = r
+                return r
+
+    def is_ex_or_in_clude(self, b: str, loc: str, exclude: bool) -> bool:
+        e = self.excludes if exclude else self.includes
         if e is None:
-            return False
+            return False if exclude else True
         if isabs(loc):
             bl = abspath(loc)
             rl = relpath(loc, b)
@@ -207,6 +223,12 @@ class ConfigPath(BasicOption, NFBasicOption, BasicConfig):
                 elif bl != loc and i.match_only(bl):
                     return True
         return False
+
+    def is_exclude(self, b: str, loc: str) -> bool:
+        return self.is_ex_or_in_clude(b, loc, True)
+
+    def is_include(self, b: str, loc: str) -> bool:
+        return self.is_ex_or_in_clude(b, loc, False)
 
 
 class ConfigOLeveldb(BasicOption, NFBasicOption, BasicConfig):
@@ -314,6 +336,8 @@ class Program(BasicOption, NFBasicOption):
                     del top
                     for ii in ll:
                         if i.is_exclude(bp, ii):
+                            continue
+                        if not i.is_include(bp, ii):
                             continue
                         tname = relpath(join(b, join(name, relpath(ii, bp))), b)  # noqa: E501
                         tmp = ConfigNormalFile(tname, ii)
