@@ -8,6 +8,11 @@ try:
     have_gzip = True
 except ImportError:
     have_gzip = False
+try:
+    from lzma import LZMAFile
+    have_lzma = True
+except ImportError:
+    have_lzma = False
 from enum import IntEnum, unique
 try:
     from functools import cached_property
@@ -21,6 +26,7 @@ from os import remove
 class CompressMethod(IntEnum):
     BZIP2 = 0
     GZIP = 1
+    LZMA = 2
 
     @staticmethod
     def from_str(v: str) -> IntEnum:
@@ -30,6 +36,8 @@ class CompressMethod(IntEnum):
                 return CompressMethod.BZIP2
             elif t == "gzip":
                 return CompressMethod.GZIP
+            elif t == "lzma":
+                return CompressMethod.LZMA
         else:
             raise TypeError('Must be str.')
 
@@ -61,6 +69,17 @@ class CompressConfig:
                 else:
                     raise ValueError('gzip: compress_level should be 0-9.')
             self._ext = '.gz'
+        elif self._method == CompressMethod.LZMA:
+            if not have_lzma:
+                raise NotImplementedError("lzma not supported.")
+            if level is None:
+                self._level = 6
+            else:
+                if isinstance(level, int) and level >= 0 and level <= 9:
+                    self._level = level
+                else:
+                    raise ValueError('lzma: compress_level should be 0-9.')
+            self._ext = ".xz"
         self._chunk_size = 1048576
 
     def __repr__(self):
@@ -89,6 +108,8 @@ if have_bz2:
     supported_exts.append('.bz2')
 if have_gzip:
     supported_exts.append('.gz')
+if have_lzma:
+    supported_exts.append('.xz')
 
 
 def sizeof_fmt(num, suffix='B'):
@@ -126,6 +147,14 @@ def compress(src: str, dest: str, c: CompressConfig, name: str, prog: str):
                     f.write(a)
                     a = t.read(cs)
                 del a
+    elif c.method == CompressMethod.LZMA:
+        with open(src, 'rb') as t:
+            with LZMAFile(fn, 'wb', preset=c.level) as f:
+                a = t.read(cs)
+                while a != b'':
+                    f.write(a)
+                    a = t.read(cs)
+                del a
     i = compress_info(getsize(src), getsize(fn))
     print(f'{prog}: Compressed {src}({name}) -> {fn} ({i})')
     del i
@@ -151,6 +180,14 @@ def decompress(src: str, dest: str, c: CompressConfig, name: str, prog: str):
                 del a
     elif c.method == CompressMethod.GZIP:
         with GzipFile(fn, 'rb') as f:
+            with open(dest, 'wb') as t:
+                a = f.read(cs)
+                while a != b'':
+                    t.write(a)
+                    a = f.read(cs)
+                del a
+    elif c.method == CompressMethod.LZMA:
+        with LZMAFile(fn, 'rb') as f:
             with open(dest, 'wb') as t:
                 a = f.read(cs)
                 while a != b'':
