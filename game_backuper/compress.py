@@ -3,7 +3,12 @@ try:
     have_bz2 = True
 except ImportError:
     have_bz2 = False
-from enum import IntEnum
+try:
+    from gzip import GzipFile
+    have_gzip = True
+except ImportError:
+    have_gzip = False
+from enum import IntEnum, unique
 try:
     from functools import cached_property
 except ImportError:
@@ -12,8 +17,10 @@ from os.path import exists, isfile, getsize
 from os import remove
 
 
+@unique
 class CompressMethod(IntEnum):
     BZIP2 = 0
+    GZIP = 1
 
     @staticmethod
     def from_str(v: str) -> IntEnum:
@@ -21,6 +28,8 @@ class CompressMethod(IntEnum):
             t = v.lower()
             if t == 'bzip2':
                 return CompressMethod.BZIP2
+            elif t == "gzip":
+                return CompressMethod.GZIP
         else:
             raise TypeError('Must be str.')
 
@@ -41,6 +50,17 @@ class CompressConfig:
                 else:
                     raise ValueError('bzip2: compress_level should be 1-9.')
             self._ext = ".bz2"
+        elif self._method == CompressMethod.GZIP:
+            if not have_gzip:
+                raise NotImplementedError("gzip not supported.")
+            if level is None:
+                self._level = 9
+            else:
+                if isinstance(level, int) and level >= 0 and level <= 9:
+                    self._level = level
+                else:
+                    raise ValueError('gzip: compress_level should be 0-9.')
+            self._ext = '.gz'
         self._chunk_size = 1048576
 
     def __repr__(self):
@@ -67,6 +87,8 @@ class CompressConfig:
 supported_exts = []
 if have_bz2:
     supported_exts.append('.bz2')
+if have_gzip:
+    supported_exts.append('.gz')
 
 
 def sizeof_fmt(num, suffix='B'):
@@ -96,6 +118,14 @@ def compress(src: str, dest: str, c: CompressConfig, name: str, prog: str):
                     f.write(a)
                     a = t.read(cs)
                 del a
+    elif c.method == CompressMethod.GZIP:
+        with open(src, 'rb') as t:
+            with GzipFile(fn, 'wb', compresslevel=c.level) as f:
+                a = t.read(cs)
+                while a != b'':
+                    f.write(a)
+                    a = t.read(cs)
+                del a
     i = compress_info(getsize(src), getsize(fn))
     print(f'{prog}: Compressed {src}({name}) -> {fn} ({i})')
     del i
@@ -113,6 +143,14 @@ def decompress(src: str, dest: str, c: CompressConfig, name: str, prog: str):
     cs = c.chunk_size
     if c.method == CompressMethod.BZIP2:
         with BZ2File(fn, 'rb') as f:
+            with open(dest, 'wb') as t:
+                a = f.read(cs)
+                while a != b'':
+                    t.write(a)
+                    a = f.read(cs)
+                del a
+    elif c.method == CompressMethod.GZIP:
+        with GzipFile(fn, 'rb') as f:
             with open(dest, 'wb') as t:
                 a = f.read(cs)
                 while a != b'':
