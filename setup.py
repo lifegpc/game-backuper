@@ -8,7 +8,15 @@ except ImportError:
     def cythonize(li):
         return []
 
-ext_modules = [Extension("game_backuper._pcre2", ["game_backuper/_pcre2.pyx"], libraries=["pcre2-8"])]
+ext_modules = []
+if '--without-pcre2' in sys.argv:
+    sys.argv.remove('--without-pcre2')
+else:
+    ext_modules.append(Extension("game_backuper._pcre2", ["game_backuper/_pcre2.pyx"], libraries=["pcre2-8"]))
+if '--without-zstd' in sys.argv:
+    sys.argv.remove('--without-zstd')
+else:
+    ext_modules.append(Extension("game_backuper._zstd", ["game_backuper/_zstd.pyx"], libraries=["zstd"]))
 
 if "py2exe" in sys.argv:
     from distutils.core import setup

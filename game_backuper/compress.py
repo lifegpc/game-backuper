@@ -102,7 +102,7 @@ class CompressConfig:
                 else:
                     raise ValueError('lzip: compress_level should be 0-9.')
             self._ext = ".lz"
-        self._chunk_size = 1048576
+        self._chunk_size = 131072
 
     def __repr__(self):
         t = type(self)

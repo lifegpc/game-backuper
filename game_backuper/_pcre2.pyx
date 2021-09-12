@@ -113,8 +113,6 @@ cdef class Match:
         if self.data != NULL:
             pcre2_match_data_free(self.data)
             self.data = NULL
-        Py_DECREF(self.r)
-        Py_DECREF(self.inp)
 
     def __getitem__(self, uint32_t i):
         if self.data == NULL:
@@ -149,9 +147,7 @@ cdef class Match:
 
     def __init__(self, unicode inp, r):
         self.inp = inp
-        Py_INCREF(inp)
         self.r = r
-        Py_INCREF(r)
 
     def end(self) -> int:
         if self.data == NULL:
