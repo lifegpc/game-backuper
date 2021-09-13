@@ -29,6 +29,14 @@ try:
     have_zstd = True
 except ImportError:
     have_zstd = False
+try:
+    from snappy import (
+        StreamCompressor as Snappy_Compressor,
+        StreamDecompressor as Snappy_Decompressor,
+    )
+    have_snappy = True
+except ImportError:
+    have_snappy = False
 from enum import IntEnum, unique
 try:
     from functools import cached_property
@@ -45,6 +53,7 @@ class CompressMethod(IntEnum):
     LZMA = 2
     LZIP = 3
     ZSTD = 4
+    SNAPPY = 5
 
     @staticmethod
     def from_str(v: str) -> IntEnum:
@@ -60,6 +69,8 @@ class CompressMethod(IntEnum):
                 return CompressMethod.LZIP
             elif t == "zstd":
                 return CompressMethod.ZSTD
+            elif t == "snappy":
+                return CompressMethod.SNAPPY
         else:
             raise TypeError('Must be str.')
 
@@ -124,6 +135,11 @@ class CompressConfig:
                 else:
                     raise ValueError(f'zstd: compress_level should be 0-{ZSTD_MAX}.')  # noqa: E501
             self._ext = ".zst"
+        elif self._method == CompressMethod.SNAPPY:
+            if not have_snappy:
+                raise NotImplementedError("snappy not supported.")
+            self._level = None
+            self._ext = ".snappy"
         self._chunk_size = 131072
 
     def __repr__(self):
@@ -158,6 +174,8 @@ if have_lzip:
     supported_exts.append('.lz')
 if have_zstd:
     supported_exts.append('.zst')
+if have_snappy:
+    supported_exts.append('.snappy')
 
 
 def sizeof_fmt(num, suffix='B'):
@@ -219,6 +237,16 @@ def compress(src: str, dest: str, c: CompressConfig, name: str, prog: str):
                     f.write(a)
                     a = t.read(cs)
                 del a
+    elif c.method == CompressMethod.SNAPPY:
+        with open(src, 'rb') as t:
+            with open(fn, 'wb') as f:
+                o = Snappy_Compressor()
+                a = t.read(cs)
+                while a != b'':
+                    b = o.compress(a)
+                    f.write(b)
+                    a = t.read(cs)
+                del a, b, o
     i = compress_info(getsize(src), getsize(fn))
     print(f'{prog}: Compressed {src}({name}) -> {fn} ({i})')
     del i
@@ -272,5 +300,16 @@ def decompress(src: str, dest: str, c: CompressConfig, name: str, prog: str):
                     t.write(a)
                     a = f.read(cs)
                 del a
+    elif c.method == CompressMethod.SNAPPY:
+        with open(fn, 'rb') as f:
+            with open(dest, 'wb') as t:
+                o = Snappy_Decompressor()
+                a = f.read(cs)
+                while a != b'':
+                    b = o.decompress(a)
+                    t.write(b)
+                    a = f.read(cs)
+                o.flush()
+                del a, b, o
     i = compress_info(getsize(dest), getsize(fn))
     print(f'{prog}: Decompressed {fn}({name}) -> {dest} ({i})')

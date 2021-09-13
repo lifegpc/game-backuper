@@ -50,6 +50,7 @@ else:
         "extras_require": {
             "leveldb": "plyvel",
             "lzip": "lzip",
+            "snappy": "python-snappy",
         },
         "python_requires": ">=3.6"
     }

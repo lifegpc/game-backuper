@@ -1,3 +1,4 @@
 pyyaml
 plyvel[leveldb]
 lzip[lzip]
+python-snappy[snappy]
