@@ -37,6 +37,14 @@ try:
     have_snappy = True
 except ImportError:
     have_snappy = False
+try:
+    from brotli import (
+        Compressor as BrotliCompressor,
+        Decompressor as BrotliDecompressor,
+    )
+    have_brotli = True
+except ImportError:
+    have_brotli = False
 from enum import IntEnum, unique
 try:
     from functools import cached_property
@@ -54,6 +62,7 @@ class CompressMethod(IntEnum):
     LZIP = 3
     ZSTD = 4
     SNAPPY = 5
+    BROTLI = 6
 
     @staticmethod
     def from_str(v: str) -> IntEnum:
@@ -71,6 +80,8 @@ class CompressMethod(IntEnum):
                 return CompressMethod.ZSTD
             elif t == "snappy":
                 return CompressMethod.SNAPPY
+            elif t == "brotli":
+                return CompressMethod.BROTLI
         else:
             raise TypeError('Must be str.')
 
@@ -140,6 +151,17 @@ class CompressConfig:
                 raise NotImplementedError("snappy not supported.")
             self._level = None
             self._ext = ".snappy"
+        elif self._method == CompressMethod.BROTLI:
+            if not have_brotli:
+                raise NotImplementedError("brotli not supported.")
+            if level is None:
+                self._level = None
+            else:
+                if isinstance(level, int) and level >= 0 and level <= 11:
+                    self._level = level
+                else:
+                    raise ValueError('brotli: compress_level should be 0-11.')
+            self._ext = '.br'
         self._chunk_size = 131072
 
     def __repr__(self):
@@ -176,6 +198,8 @@ if have_zstd:
     supported_exts.append('.zst')
 if have_snappy:
     supported_exts.append('.snappy')
+if have_brotli:
+    supported_exts.append('.br')
 
 
 def sizeof_fmt(num, suffix='B'):
@@ -247,6 +271,21 @@ def compress(src: str, dest: str, c: CompressConfig, name: str, prog: str):
                     f.write(b)
                     a = t.read(cs)
                 del a, b, o
+    elif c.method == CompressMethod.BROTLI:
+        k = {}
+        if c.level is not None:
+            k['quality'] = c.level
+        with open(src, 'rb') as t:
+            with open(fn, 'wb') as f:
+                o = BrotliCompressor(**k)
+                a = t.read(cs)
+                while a != b'':
+                    b = o.process(a)
+                    f.write(b)
+                    a = t.read(cs)
+                f.write(o.finish())
+                del a, b, o
+        del k
     i = compress_info(getsize(src), getsize(fn))
     print(f'{prog}: Compressed {src}({name}) -> {fn} ({i})')
     del i
@@ -310,6 +349,18 @@ def decompress(src: str, dest: str, c: CompressConfig, name: str, prog: str):
                     t.write(b)
                     a = f.read(cs)
                 o.flush()
+                del a, b, o
+    elif c.method == CompressMethod.BROTLI:
+        with open(fn, 'rb') as f:
+            with open(dest, 'wb') as t:
+                o = BrotliDecompressor()
+                a = f.read(cs)
+                while a != b'':
+                    b = o.process(a)
+                    t.write(b)
+                    a = f.read(cs)
+                if not o.is_finished():
+                    raise ValueError('Read all datas from file but seems not finished.')  # noqa: E501
                 del a, b, o
     i = compress_info(getsize(dest), getsize(fn))
     print(f'{prog}: Decompressed {fn}({name}) -> {dest} ({i})')

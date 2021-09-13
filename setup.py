@@ -51,6 +51,7 @@ else:
             "leveldb": "plyvel",
             "lzip": "lzip",
             "snappy": "python-snappy",
+            "brotli": "brotli",
         },
         "python_requires": ">=3.6"
     }

@@ -2,9 +2,9 @@ dest: /path/to/store/backup/files  # The programs will store database and backup
 enable_pcre2: false  # Optional. Default value: false. Try to use PCRE2 first. PCRE2 may be a little slower than internal regex library.
 remove_old_files: true  # Optional. Default value: true. Remove unneeded backup files which already deleted in source tree when backuping files.
 ignore_hidden_files: true  # Optional. Default value: true. Whether to ignore files which its name starts with ".". Only effect folder which type is "path".
-compress_method: "bzip2"  # Optional. Default value: null. Supported value: "bzip2", "gzip", "lzma", "lzip", "zstd", "snappy"
+compress_method: "bzip2"  # Optional. Default value: null. Supported value: "bzip2", "gzip", "lzma", "lzip", "zstd", "snappy", "brotli"
 # Optional. Default value: null. bzip2 support 1-9 (Default: 9). gzip support 0-9 (Default: 9). lzma or lzip support 0-9 (Default: 6).
-# zstd support 0-22 (Default: 3).
+# zstd support 0-22 (Default: 3). brotli support 0-11 (Default: unset).
 compress_level: 6
 programs:
   - name: Your program name  # This name is used to identify different application.
