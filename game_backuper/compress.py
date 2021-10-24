@@ -52,6 +52,7 @@ except ImportError:
     cached_property = property
 from os.path import exists, isfile, getsize
 from os import remove
+from game_backuper.file import mkdir_for_file
 
 
 @unique
@@ -221,6 +222,7 @@ def compress(src: str, dest: str, c: CompressConfig, name: str, prog: str):
     cs = c.chunk_size
     if exists(fn):
         remove(fn)
+    mkdir_for_file(fn)
     if c.method == CompressMethod.BZIP2:
         with open(src, 'rb') as t:
             with BZ2File(fn, 'wb', compresslevel=c.level) as f:
