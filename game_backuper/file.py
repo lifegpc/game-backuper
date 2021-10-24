@@ -5,7 +5,6 @@ from game_backuper.hashl import sha512
 from shutil import copy2
 from game_backuper.filetype import FileType
 from os import remove
-from game_backuper.compress import supported_exts
 
 
 File = namedtuple('File', ['id', 'file', 'size', 'program', 'hash', 'type'])
@@ -78,6 +77,7 @@ def remove_dirs(loc: str):
 
 
 def remove_compress_files(loc: str, prog: str, name: str, ext: str = None):
+    from game_backuper.compress import supported_exts
     exts = supported_exts.copy()
     if ext is not None:
         exts.remove(ext)
