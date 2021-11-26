@@ -49,7 +49,13 @@ def list_all_paths(base: str, cli):
             if isfile(bp):
                 r.append(bp)
             elif isdir(bp):
-                r += listdirs(bp, c.ignore_hidden_files)
+                re = listdirs(bp, c.ignore_hidden_files)
+                for ii in re:
+                    if c.is_exclude(bp, ii):
+                        continue
+                    if not c.is_include(bp, ii):
+                        continue
+                    r.append(ii)
         elif isinstance(c, ConfigOLeveldb):
             r.append(c.path if isabs(c.path) else join(base, c.path))
     return r
