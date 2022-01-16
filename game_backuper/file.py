@@ -1,10 +1,15 @@
 from collections import namedtuple
 from os.path import exists, dirname, abspath, isfile, isdir, join, isabs
-from os import stat, makedirs, listdir
+from os import stat, makedirs, listdir, remove
 from game_backuper.hashl import sha512
 from shutil import copy2
 from game_backuper.filetype import FileType
-from os import remove
+from platform import system
+if system() == "Windows":
+    from game_backuper.cfapi import hydrate_file
+    have_cfapi = True
+else:
+    have_cfapi = False
 
 
 File = namedtuple('File', ['id', 'file', 'size', 'program', 'hash', 'type'])
@@ -93,3 +98,10 @@ def remove_compress_files(loc: str, prog: str, name: str, ext: str = None):
         if exists(f) and isfile(f):
             remove(f)
             print(f'{prog}: Removed {f}({name})')
+
+
+def hydrate_file_if_needed(fn: str):
+    if not have_cfapi:
+        return
+    if exists(fn):
+        hydrate_file(fn)

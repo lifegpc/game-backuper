@@ -2,7 +2,7 @@ from sqlite3 import connect
 from os.path import join
 from typing import List, Union
 from threading import Lock
-from game_backuper.file import File
+from game_backuper.file import File, hydrate_file_if_needed
 from game_backuper.filetype import FileType
 
 
@@ -56,11 +56,13 @@ class Db:
             self.db.execute(FILETYPE_TABLE)
         self.db.commit()
 
-    def __init__(self, loc: str):
+    def __init__(self, loc: str, optimize_db: bool = False):
         fn = join(loc, "data.db")
+        hydrate_file_if_needed(fn)
         self.db = connect(fn, check_same_thread=False)
-        self.db.execute('VACUUM;')
-        self.db.commit()
+        if optimize_db:
+            self.db.execute('VACUUM;')
+            self.db.commit()
         ok = self.__check_database()
         if not ok:
             self.__create_table()

@@ -8,6 +8,7 @@ from game_backuper.file import (
     remove_dirs,
     new_file,
     mkdir_for_file,
+    hydrate_file_if_needed,
 )
 from os import remove, close
 from game_backuper.filetype import FileType
@@ -55,6 +56,7 @@ class RestoreTask(Thread):
                         print(f'{prog}: Skip {fn}')
                         continue
                 if c is None:
+                    hydrate_file_if_needed(src)
                     copy_file(src, dest, nam, prog)
                 else:
                     decompress(src, dest, c, nam, prog)
@@ -89,6 +91,7 @@ class RestoreTask(Thread):
                         continue
                 mkdir_for_file(dest)
                 if c is None:
+                    hydrate_file_if_needed(src)
                     sqlite_to_leveldb(src, dest, r.domains)
                     print(f'{prog}: Covert leveldb done. {src}({fn}) -> {dest}')  # noqa: E501
                 else:

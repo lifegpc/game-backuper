@@ -14,6 +14,6 @@ def main(cm=None):
     cfg = Config(cml.config_file)
     if not exists(cfg.dest):
         makedirs(cfg.dest)
-    db = Db(cfg.dest)
+    db = Db(cfg.dest, cml.optimize_db)
     bk = Backuper(db, cfg, cml)
     return bk.run()

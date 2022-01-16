@@ -36,10 +36,11 @@ class Opts:
     config_file: str = DEFAULT_CONFIG
     action = OptAction.BACKUP
     programs_list = None
+    optimize_db = False
 
     def __init__(self, cml: List[str]):
         try:
-            r = getopt(cml, 'hc:', ['help', 'config='])
+            r = getopt(cml, 'hc:', ['help', 'config=', 'optimize-db'])
             for i in r[0]:
                 if i[0] == '-h' or i[0] == '--help':
                     self.print_help()
@@ -47,6 +48,8 @@ class Opts:
                     sys.exit(0)
                 elif i[0] == '-c' or i[0] == '--config':
                     self.config_file = i[1]
+                elif i[0] == '--optimize-db':
+                    self.optimize_db = True
             if len(r[1]) > 0:
                 cm = r[1]
                 re = OptAction.from_str(cm[0])
@@ -74,4 +77,5 @@ game-backuper [options] list
 game-backuper [options] list_leveldb_key [<db_path> [...]]
 Options:
     -h, --help          Print help message.
-    -c, --config <path> Set config file.''')
+    -c, --config <path> Set config file.
+    --optimize-db       Optimize the sqlite3 database''')
