@@ -6,6 +6,7 @@ compress_method: "bzip2"  # Optional. Default value: null. Supported value: "bzi
 # Optional. Default value: null. bzip2 support 1-9 (Default: 9). gzip support 0-9 (Default: 9). lzma or lzip support 0-9 (Default: 6).
 # zstd support 0-22 (Default: 3). brotli support 0-11 (Default: unset).
 compress_level: 6
+encrypt_db: false  # Optional. Default value: false. Encrypt the database. Warning: The default python sqlite library don't support encrypt, it just ignore encrypt phases.
 programs:
   - name: Your program name  # This name is used to identify different application.
     base: /path/to/save/path  # Must be absoulte path.

@@ -1,7 +1,13 @@
-from sqlite3 import connect
+from getpass import getpass
+from os import close
 from os.path import join
-from typing import List, Union
+from shutil import move
+from sqlite3 import connect, Connection, DatabaseError
+from tempfile import mkstemp
 from threading import Lock
+from typing import List, Union
+from game_backuper.cml import Opts
+from game_backuper.config import Config
 from game_backuper.file import File, hydrate_file_if_needed
 from game_backuper.filetype import FileType
 
@@ -56,17 +62,64 @@ class Db:
             self.db.execute(FILETYPE_TABLE)
         self.db.commit()
 
-    def __init__(self, loc: str, optimize_db: bool = False):
-        fn = join(loc, "data.db")
+    def __init__(self, config: Config, opts: Opts):
+        self._cfg = config
+        self._opt = opts
+        fn = join(config.dest, "data.db")
         hydrate_file_if_needed(fn)
         self.db = connect(fn, check_same_thread=False)
-        if optimize_db:
+        if config.encrypt_db:
+            passpharse = getpass('Please input the password of the database:')
+            if not self.encrypted:
+                tfn = mkstemp()
+                close(tfn[0])
+                tfn = tfn[1]
+                db = connect(tfn)
+                self.__set_encrypt_key(passpharse, db)
+                for q in self.db.iterdump():
+                    db.execute(q)
+                self.db.close()
+                db.close()
+                move(tfn, fn)
+                self.db = connect(fn, check_same_thread=False)
+            elif opts.change_key:
+                self.__set_encrypt_key(passpharse)
+                passpharse = getpass('Please input new password of the database:')  # noqa: E501
+                tfn = mkstemp()
+                close(tfn[0])
+                tfn = tfn[1]
+                db = connect(tfn)
+                self.__set_encrypt_key(passpharse, db)
+                for q in self.db.iterdump():
+                    db.execute(q)
+                self.db.close()
+                db.close()
+                move(tfn, fn)
+                self.db = connect(fn, check_same_thread=False)
+            self.__set_encrypt_key(passpharse)
+        else:
+            if self.encrypted:
+                passpharse = getpass('Please input the password of the database:')  # noqa: E501
+                self.__set_encrypt_key(passpharse)
+                tfn = mkstemp()
+                close(tfn[0])
+                tfn = tfn[1]
+                db = connect(tfn)
+                for q in self.db.iterdump():
+                    db.execute(q)
+                self.db.close()
+                db.close()
+                move(tfn, fn)
+                self.db = connect(fn, check_same_thread=False)
+        if opts.optimize_db:
             self.db.execute('VACUUM;')
             self.db.commit()
         ok = self.__check_database()
         if not ok:
             self.__create_table()
         self._lock = Lock()
+        if config.encrypt_db and not self.encrypted:
+            print('Warning: Current library do not support encryption.')
 
     def __read_version(self) -> List[int]:
         if 'version' not in self._exist_table:
@@ -74,6 +127,12 @@ class Db:
         cur = self.db.execute("SELECT * FROM version WHERE id='main';")
         for i in cur:
             return [k for k in i if isinstance(k, int)]
+
+    def __set_encrypt_key(self, key: str, db: Connection = None):
+        if db is None:
+            db = self.db
+        db.execute('PRAGMA cipher_salt = "x\'2d506b1d2c3e7b075518f9db81039657\'";')  # noqa: E501
+        db.execute('PRAGMA key = \'%s\';' % (key.replace("'", "\\'")))
 
     def __updateExistsTable(self):
         cur = self.db.execute('SELECT * FROM main.sqlite_master;')
@@ -104,6 +163,17 @@ class Db:
                     self.db.execute('INSERT INTO filetype VALUES (?, ?);',
                                     (i[0], f.type))
             self.db.commit()
+
+    @property
+    def encrypted(self):
+        try:
+            con = connect(join(self._cfg.dest, 'data.db'))
+            con.execute('SELECT count(*) FROM sqlite_master;')
+            con.close()
+            return False
+        except DatabaseError:
+            con.close()
+            return True
 
     def get_file(self, prog: str, file: str) -> File:
         with self._lock:

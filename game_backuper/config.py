@@ -418,6 +418,7 @@ class Program(BasicOption, NFBasicOption):
 
 class Config(BasicOption, NFBasicOption):
     dest = ''
+    encrypt_db = False
     progs = []
     progs_name = []
 
@@ -431,6 +432,12 @@ class Config(BasicOption, NFBasicOption):
         if 'dest' not in t or not isinstance(t['dest'], str):
             raise ValueError("Config file don't have dest or dest is not str.")
         self.dest = t['dest']
+        if 'encrypt_db' in t:
+            if not isinstance(t['encrypt_db'], bool):
+                raise ValueError('encrypt_db should be true or false.')
+            self.encrypt_db = t['encrypt_db']
+        else:
+            self.encrypt_db = False
         if 'programs' not in t:
             raise ValueError("No programs found.")
         self.parse_all(t)

@@ -6,8 +6,11 @@ from shutil import copy2
 from game_backuper.filetype import FileType
 from platform import system
 if system() == "Windows":
-    from game_backuper.cfapi import hydrate_file
-    have_cfapi = True
+    try:
+        from game_backuper.cfapi import hydrate_file
+        have_cfapi = True
+    except Exception:
+        have_cfapi = False
 else:
     have_cfapi = False
 

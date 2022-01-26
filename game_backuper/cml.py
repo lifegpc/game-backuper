@@ -37,10 +37,12 @@ class Opts:
     action = OptAction.BACKUP
     programs_list = None
     optimize_db = False
+    change_key = False
 
     def __init__(self, cml: List[str]):
         try:
-            r = getopt(cml, 'hc:', ['help', 'config=', 'optimize-db'])
+            r = getopt(cml, 'hc:', ['help', 'config=', 'optimize-db',
+                                    'change-key'])
             for i in r[0]:
                 if i[0] == '-h' or i[0] == '--help':
                     self.print_help()
@@ -50,6 +52,8 @@ class Opts:
                     self.config_file = i[1]
                 elif i[0] == '--optimize-db':
                     self.optimize_db = True
+                elif i[0] == '--change-key':
+                    self.change_key = True
             if len(r[1]) > 0:
                 cm = r[1]
                 re = OptAction.from_str(cm[0])
@@ -78,4 +82,5 @@ game-backuper [options] list_leveldb_key [<db_path> [...]]
 Options:
     -h, --help          Print help message.
     -c, --config <path> Set config file.
-    --optimize-db       Optimize the sqlite3 database''')
+    --optimize-db       Optimize the sqlite3 database
+    --change-key        Change encrypt password''')
