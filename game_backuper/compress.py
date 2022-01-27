@@ -1,5 +1,5 @@
 try:
-    from bz2 import BZ2File
+    from bz2 import BZ2File, BZ2Compressor, BZ2Decompressor
     have_bz2 = True
 except ImportError:
     have_bz2 = False
@@ -9,7 +9,7 @@ try:
 except ImportError:
     have_gzip = False
 try:
-    from lzma import LZMAFile
+    from lzma import LZMAFile, LZMACompressor, LZMADecompressor
     have_lzma = True
 except ImportError:
     have_lzma = False
@@ -17,14 +17,21 @@ try:
     from lzip import (
         FileEncoder as LZIPFileEncoder,
         decompress_file_iter as LZIP_decompress_file_iter,
+        level_to_dictionary_size_and_match_len_limit as lzip_level_dict,
+    )
+    from lzip_extension import (
+        Decoder as LZIPDecoder,
+        Encoder as LZIPEncoder,
     )
     have_lzip = True
 except ImportError:
     have_lzip = False
 try:
     from game_backuper.zstd import (
+        ZSTDCompressor,
+        ZSTDDecompressor,
         ZSTDFile,
-        MAX_COMPRESS_LEVEL as ZSTD_MAX
+        MAX_COMPRESS_LEVEL as ZSTD_MAX,
     )
     have_zstd = True
 except ImportError:
@@ -53,6 +60,87 @@ except ImportError:
 from os.path import exists, isfile, getsize
 from os import remove
 from game_backuper.file import mkdir_for_file, hydrate_file_if_needed
+
+
+if have_gzip:
+    class GZCompressor:
+        def __init__(self, compress_level: int = 9, file_obj=None):
+            self.write_to_file = True
+            self._fileobj = file_obj
+            self._level = compress_level
+            self._f = None
+
+        def close(self):
+            self._f.close()
+
+        def compress(self, data: bytes) -> bytes:
+            if self._f is None:
+                self._f = GzipFile(mode="wb", compresslevel=self._level, fileobj=self._fileobj)  # noqa: E501
+            self._f.write(data)
+            return b''
+
+        def flush(self) -> bytes:
+            self._f.flush()
+            return b''
+
+    class GZDecompressor:
+        def __init__(self, file_obj=None):
+            self.write_to_file = True
+            self._fileobj = file_obj
+            self._f = None
+
+        def close(self):
+            self._f.close()
+
+        def read(self, len: int) -> bytes:
+            if self._f is None:
+                self._f = GzipFile(mode="rb", fileobj=self._fileobj)
+            return self._f.read(len)
+
+if have_lzip:
+    class LZIPCompressor:
+        def __init__(self, level: int = 6):
+            d = lzip_level_dict[level]
+            self._encoder = LZIPEncoder(d[0], d[1], 1 << 51)
+
+        def compress(self, data: bytes) -> bytes:
+            return self._encoder.compress(data)
+
+        def flush(self) -> bytes:
+            return self._encoder.finish()
+
+    class LZIPDecompressor:
+        def __init__(self):
+            self._decoder = LZIPDecoder(1)
+
+        def decompress(self, data: bytes) -> bytes:
+            return self._decoder.decompress(data)
+
+        @property
+        def eof(self):
+            return False
+
+if have_brotli:
+    class BrotliCompressor2:
+        def __init__(self, *k, **kw):
+            self._c = BrotliCompressor(*k, **kw)
+
+        def compress(self, data: bytes) -> bytes:
+            return self._c.process(data)
+
+        def flush(self) -> bytes:
+            return self._c.finish()
+
+    class BrotliDecompressor2:
+        def __init__(self, *k, **kw) -> None:
+            self._c = BrotliDecompressor(*k, **kw)
+
+        def decompress(self, data: bytes) -> bytes:
+            return self._c.process(data)
+
+        @property
+        def eof(self):
+            return self._c.is_finished()
 
 
 @unique
@@ -169,6 +257,41 @@ class CompressConfig:
         t = type(self)
         return f"<{t.__module__}.{t.__qualname__} object at {hex(id(self))}; method={repr(self._method)}, level={repr(self._level)}, ext={repr(self._ext)}>"  # noqa: E501
 
+    def compressor(self, fileobj):
+        if self._method == CompressMethod.BZIP2:
+            return BZ2Compressor(self._level)
+        elif self._method == CompressMethod.GZIP:
+            return GZCompressor(self._level, fileobj)
+        elif self._method == CompressMethod.LZMA:
+            return LZMACompressor(preset=self._level)
+        elif self._method == CompressMethod.LZIP:
+            return LZIPCompressor(self._level)
+        elif self._method == CompressMethod.ZSTD:
+            return ZSTDCompressor(self._level)
+        elif self._method == CompressMethod.SNAPPY:
+            return Snappy_Compressor()
+        elif self._method == CompressMethod.BROTLI:
+            c = {}
+            if self._level is not None:
+                c['quality'] = self._level
+            return BrotliCompressor2(**c)
+
+    def decompressor(self, fileobj):
+        if self._method == CompressMethod.BZIP2:
+            return BZ2Decompressor()
+        elif self._method == CompressMethod.GZIP:
+            return GZDecompressor(fileobj)
+        elif self._method == CompressMethod.LZMA:
+            return LZMADecompressor()
+        elif self._method == CompressMethod.LZIP:
+            return LZIPDecompressor()
+        elif self._method == CompressMethod.ZSTD:
+            return ZSTDDecompressor()
+        elif self._method == CompressMethod.SNAPPY:
+            return Snappy_Decompressor()
+        elif self._method == CompressMethod.BROTLI:
+            return BrotliDecompressor2()
+
     @cached_property
     def chunk_size(self) -> int:
         return self._chunk_size
@@ -212,6 +335,8 @@ def sizeof_fmt(num, suffix='B'):
 
 
 def compress_info(ori: int, re: int):
+    if ori == 0:
+        return f"{sizeof_fmt(ori)} -> {sizeof_fmt(re)} ({float('inf')})"
     return f"{sizeof_fmt(ori)} -> {sizeof_fmt(re)} ({re/ori*100:.2f}%)"
 
 

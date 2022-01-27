@@ -15,7 +15,11 @@ else:
     have_cfapi = False
 
 
-File = namedtuple('File', ['id', 'file', 'size', 'program', 'hash', 'type'])
+_File = namedtuple('File', ['id', 'file', 'size', 'program', 'hash', 'type'])
+
+
+class File(_File):
+    pass
 
 
 def mkdir_for_file(p: str):

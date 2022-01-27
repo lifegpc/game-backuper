@@ -174,7 +174,7 @@ cdef class ZSTDDecompressor:
         if self.finish and i.pos < i.size:
             obuf = (<char*> i.src) + i.pos
             self._unused_data = PyBytes_FromStringAndSize(obuf, i.size - i.pos)
-        if max_length == 1 or len(b) <= max_length:
+        if max_length == -1 or len(b) <= max_length:
             return b
         else:
             self._buff = b[max_length:]
