@@ -1,3 +1,4 @@
+cryptography
 pyyaml
 plyvel[leveldb]
 lzip[lzip]

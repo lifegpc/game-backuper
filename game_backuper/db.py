@@ -8,6 +8,7 @@ from threading import Lock
 from typing import List, Union
 from game_backuper.cml import Opts
 from game_backuper.config import Config
+from game_backuper.enc import EncryptStats
 from game_backuper.file import File, hydrate_file_if_needed
 from game_backuper.filetype import FileType
 
@@ -33,10 +34,19 @@ id INT,
 type INT,
 PRIMARY KEY(id)
 );'''
+ENCRYPTED_FILES_TABLE = '''CREATE TABLE encrypted_files (
+id INTEGER,
+key TEXT,
+iv TEXT,
+crc32 TEXT,
+compressed INT,
+compressed_size INT,
+PRIMARY KEY(id)
+);'''
 
 
 class Db:
-    VERSION = [1, 0, 0, 1]
+    VERSION = [1, 0, 0, 2]
 
     def __check_database(self) -> bool:
         self.__updateExistsTable()
@@ -46,6 +56,8 @@ class Db:
         if v < self.VERSION:
             if v < [1, 0, 0, 1]:
                 self.db.execute(FILETYPE_TABLE)
+            if v < [1, 0, 0, 2]:
+                self.db.execute(ENCRYPTED_FILES_TABLE)
             self.__write_version()
         if v > self.VERSION:
             raise ValueError(
@@ -60,6 +72,8 @@ class Db:
             self.db.execute(FILES_TABLE)
         if 'filetype' not in self._exist_table:
             self.db.execute(FILETYPE_TABLE)
+        if 'encrypted_files' not in self._exist_table:
+            self.db.execute(ENCRYPTED_FILES_TABLE)
         self.db.commit()
 
     def __init__(self, config: Config, opts: Opts):
@@ -162,6 +176,12 @@ class Db:
                 for i in cur:
                     self.db.execute('INSERT INTO filetype VALUES (?, ?);',
                                     (i[0], f.type))
+            if f.encrypted:
+                cur = self.db.execute(
+                    'SELECT * FROM files WHERE program=? AND file=?;',
+                    (f.program, f.file))
+                for i in cur:
+                    self.db.execute('INSERT INTO encrypted_files VALUES (?, ?, ?, ?, ?, ?);', (i[0], f.key, f.iv, f.crc32, f.x_compress_type, f.compressed_size))  # noqa: E501
             self.db.commit()
 
     @property
@@ -178,7 +198,7 @@ class Db:
     def get_file(self, prog: str, file: str) -> File:
         with self._lock:
             cur = self.db.execute(
-                'SELECT files.*, filetype.type FROM files LEFT JOIN filetype ON files.id=filetype.id WHERE program=? AND file=?;',  # noqa: E501
+                'SELECT files.*, filetype.type, encrypted_files.key, encrypted_files.iv, encrypted_files.crc32, encrypted_files.compressed, encrypted_files.compressed_size FROM files LEFT JOIN filetype ON files.id=filetype.id LEFT JOIN encrypted_files ON files.id=encrypted_files.id WHERE program=? AND file=?;',  # noqa: E501
                 (prog, file))
             for i in cur:
                 return File(*i)
@@ -207,10 +227,31 @@ class Db:
             self.db.execute('DELETE FROM files WHERE id=?;', (iid,))
             if ft is not None:
                 self.db.execute('DELETE FROM filetype WHERE id=?;', (iid,))
+            cur = self.db.execute('SELECT * FROM encrypted_files WHERE id=?;', (iid,))  # noqa: E501
+            for i in cur:
+                self.db.execute('DELETE FROM encrypted_files WHERE id=?;', (iid,))  # noqa: E501
+                break
             self.db.commit()
 
     def set_file(self, id: int, size: int, hash: str):
         with self._lock:
             self.db.execute('UPDATE files SET size=?, hash=? WHERE id=?;',
                             (size, hash, id))
+            self.db.commit()
+
+    def set_file_encrypt_information(self, id: int, stats: EncryptStats):
+        if stats is not None and not isinstance(stats, EncryptStats):
+            raise TypeError(f"Expected EncryptStats, got {type(stats)}")
+        with self._lock:
+            if stats is None:
+                self.db.execute('DELETE FROM encrypted_files WHERE id=?;', (id,))  # noqa: E501
+            else:
+                cur = self.db.execute('SELECT * FROM encrypted_files WHERE id=?;', (id,))  # noqa: E501
+                have_data = False
+                for _ in cur:
+                    have_data = True
+                if have_data:
+                    self.db.execute('UPDATE encrypted_files SET key=?, iv=?, crc32=?, compressed=?, compressed_size=? WHERE id=?;', (stats.key, stats.iv, stats.crc32, stats.compress_type.value if stats.compressed else None, stats.compressed_size if stats.compressed else None, id))  # noqa: E501
+                else:
+                    self.db.execute('INSERT INTO encrypted_files VALUES (?, ?, ?, ?, ?, ?);', (id, stats.key, stats.iv, stats.crc32, stats.compress_type.value if stats.compressed else None, stats.compressed_size if stats.compressed else None))  # noqa: E501
             self.db.commit()

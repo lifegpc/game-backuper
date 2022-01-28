@@ -19,6 +19,7 @@ class BasicOption:
     '''Basic options which is included in config, program and files.'''
     _remove_old_files = None
     _enable_pcre2 = None
+    _encrypt_files = None
     _compress_config = None
 
     @property
@@ -50,6 +51,20 @@ class BasicOption:
         return False
 
     @cached_property
+    def encrypt_files(self) -> bool:
+        if self._encrypt_files is not None:
+            return self._encrypt_files
+        prog = getattr(self, "_prog", None)
+        if prog is not None:
+            if prog._encrypt_files is not None:
+                return prog._encrypt_files
+        cfg = getattr(self, "_cfg", None)
+        if cfg is not None:
+            if cfg._encrypt_files is not None:
+                return cfg._encrypt_files
+        return False
+
+    @cached_property
     def remove_old_files(self) -> bool:
         if self._remove_old_files is not None:
             return self._remove_old_files
@@ -67,6 +82,7 @@ class BasicOption:
         self.parse_compress_config(data)
         self.parse_remove_old_files(data)
         self.parse_enable_pcre2(data)
+        self.parse_encrypt_files(data)
 
     def parse_compress_config(self, data=None):
         if data is None:
@@ -87,6 +103,17 @@ class BasicOption:
                 self._enable_pcre2 = v
             else:
                 raise TypeError('enable_pcre2 option must be a boolean.')
+            del v
+
+    def parse_encrypt_files(self, data=None):
+        if data is None:
+            data = getattr(self, 'data')
+        if 'encrypt_files' in data:
+            v = data['encrypt_files']
+            if isinstance(v, bool):
+                self._encrypt_files = v
+            else:
+                raise TypeError('encrypt_files option must be a boolean.')
             del v
 
     def parse_remove_old_files(self, data=None):
@@ -403,7 +430,12 @@ class Program(BasicOption, NFBasicOption):
                             if i['name'] != '':
                                 n = i['name']
                     if not relpath(name, n).startswith('..'):
-                        return ConfigPath(i, self._cfg, self)
+                        r = ConfigPath(i, self._cfg, self)
+                        if r.is_exclude(n, name):
+                            continue
+                        if not r.is_include(n, name):
+                            continue
+                        return r
                 elif t == 'leveldb':
                     if relpath(i['name'], name) == '.':
                         return ConfigOLeveldb(i, self._cfg, self)

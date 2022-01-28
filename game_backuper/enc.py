@@ -1,15 +1,33 @@
-from base64 import b85decode
+from base64 import b85decode, b85encode
+from collections import namedtuple
 from io import RawIOBase
-from os import PathLike, urandom
+from os import PathLike, remove, urandom
+from os.path import exists, getsize
 from typing import Union
 from zlib import crc32
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from game_backuper.compress import CompressConfig
+from game_backuper.compress import (
+    CompressConfig,
+    CompressMethod,
+    compress_info,
+)
+from game_backuper.file import File, hydrate_file_if_needed, mkdir_for_file
 
 
 _MODE_CLOSED = 0
 _MODE_READ = 1
 _MODE_WRITE = 3
+_EncrpytStats = namedtuple('EncryptStats', ['key', 'iv', 'crc32', 'x_compress_type', 'compressed_size'])  # noqa: E501
+
+
+class EncryptStats(_EncrpytStats):
+    @property
+    def compressed(self):
+        return self.x_compress_type is not None
+
+    @property
+    def compress_type(self):
+        return CompressMethod(self.x_compress_type)
 
 
 class DecryptException(Exception):
@@ -307,3 +325,46 @@ class EncFile(RawIOBase):
     @property
     def iv(self):
         return self._iv
+
+
+def encrypt_file(src: str, dest: str, f: File, name: str, prog: str, c: CompressConfig = None):  # noqa: E501
+    if exists(dest):
+        remove(dest)
+    mkdir_for_file(dest)
+    cs = 4096 if c is None else c.chunk_size
+    with open(src, 'rb') as s:
+        with EncFile(dest, 'wb', f.hash, compress=c) as t:
+            a = s.read(cs)
+            while a != b'':
+                t.write(a)
+                a = s.read(cs)
+            del a
+        stats = EncryptStats(b85encode(t.key).decode(), b85encode(t.iv).decode(), t.crc32, c._method.value if c else None, t.tell() if c else None)  # noqa: E501
+    i = compress_info(f.size, getsize(dest))
+    if c is None:
+        print(f'{prog}: Encrypted {src}({name}) -> {dest} ({i})')
+    else:
+        print(f'{prog}: Compressed and encrypted {src}({name}) -> {dest} ({i})')  # noqa: E501
+    return stats
+
+
+def decrypt_file(src: str, dest: str, f: File, name: str, prog: str, c: CompressConfig = None):  # noqa: E501
+    if not f.encrypted:
+        raise ValueError('File is not encrypted.')
+    hydrate_file_if_needed(src)
+    if exists(dest):
+        remove(dest)
+    mkdir_for_file(dest)
+    cs = 4096 if c is None else c.chunk_size
+    with EncFile(src, 'rb', f.hash, f.key, f.iv, f.encrypt_file_size, f.crc32, c) as s:  # noqa: E501
+        with open(dest, 'wb') as t:
+            a = s.read(cs)
+            while a != b'':
+                t.write(a)
+                a = s.read(cs)
+            del a
+    i = compress_info(f.size, getsize(src))
+    if c is None:
+        print(f'{prog}: Decrypted {src}({name}) -> {dest} ({i})')
+    else:
+        print(f'{prog}: Decrypted and decompressed {src}({name}) -> {dest} ({i})')  # noqa: E501

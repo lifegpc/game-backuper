@@ -15,11 +15,42 @@ else:
     have_cfapi = False
 
 
-_File = namedtuple('File', ['id', 'file', 'size', 'program', 'hash', 'type'])
+_File = namedtuple('File', ['id', 'file', 'size', 'program', 'hash', 'type', 'key', 'iv', 'crc32', 'x_compress_type', 'compressed_size'])  # noqa: E501
 
 
 class File(_File):
-    pass
+    @property
+    def encrypted(self):
+        return bool(self.key and self.iv and self.crc32)
+
+    @property
+    def compressed(self):
+        return self.x_compress_type is not None
+
+    @property
+    def compressed_type(self):
+        from game_backuper.compress import CompressMethod
+        return CompressMethod(self.x_compress_type) if self.compressed else None  # noqa: E501
+
+    @property
+    def encrypt_file_size(self):
+        return self.compressed_size if self.compressed_size else self.size
+
+    @classmethod
+    def from_encrypt_stats(cls, stats, file):
+        from game_backuper.enc import EncryptStats
+        if not isinstance(stats, EncryptStats):
+            raise TypeError(f'Expected EncryptStats, got {type(stats)}')
+        if not isinstance(file, (File, _File)):
+            raise TypeError(f'Expected File, got {type(file)}')
+        return cls(file.id, file.file, file.size, file.program, file.hash, file.type, stats.key, stats.iv, stats.crc32, stats.x_compress_type, stats.compressed_size)  # noqa: E501
+
+    @classmethod
+    def from_leveldb_stats(cls, stats):
+        from game_backuper.leveldb import LeveldbStats
+        if not isinstance(stats, LeveldbStats):
+            raise TypeError(f'Expected LeveldbStats, got {type(stats)}')
+        return cls(None, None, stats.size, None, stats.hash, None, None, None, None, None, None)  # noqa: E501
 
 
 def mkdir_for_file(p: str):
@@ -78,7 +109,7 @@ def new_file(loc: str, name: str, prog: str, type: FileType = None) -> File:
         fs = stat(loc).st_size
         with open(loc, 'rb') as f:
             hs = sha512(f)
-        return File(None, name, fs, prog, hs, type)
+        return File(None, name, fs, prog, hs, type, None, None, None, None, None)  # noqa: E501
 
 
 def remove_dirs(loc: str):
@@ -112,3 +143,10 @@ def hydrate_file_if_needed(fn: str):
         return
     if exists(fn):
         hydrate_file(fn)
+
+
+def remove_unencryped_files(loc: str, prog: str, name: str):
+    if exists(loc):
+        remove(loc)
+        print(f'{prog}: Removed {loc}({name})')
+    remove_compress_files(loc, prog, name)

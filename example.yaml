@@ -7,6 +7,7 @@ compress_method: "bzip2"  # Optional. Default value: null. Supported value: "bzi
 # zstd support 0-22 (Default: 3). brotli support 0-11 (Default: unset).
 compress_level: 6
 encrypt_db: false  # Optional. Default value: false. Encrypt the database. Warning: The default python sqlite library don't support encrypt, it just ignore encrypt phases.
+encrypt_files: false  # Optional. Default value: false. Encrypt backup files. The key information will stored in database.
 programs:
   - name: Your program name  # This name is used to identify different application.
     base: /path/to/save/path  # Must be absoulte path.
@@ -15,6 +16,7 @@ programs:
     ignore_hidden_files: true  # Optional.
     compress_method: null  # Optional.
     compress_level: null  # Optional.
+    encrypt_files: false  # Optional
     files:
       - BGI.gdb  # path to a file/folder. All subfolders will include if it is a folder. Must be relative path.
       - type: path
@@ -25,6 +27,7 @@ programs:
         ignore_hidden_files: true  # Optional.
         compress_method: null  # Optional.
         compress_level: null  # Optional.
+        encrypt_files: false  # Optional.
         excludes:  # Optional. Exculde some files. Only effected when path is a folder.
           - data.db  # Releative path
           - /path/to/data.db  # Absolute path
@@ -46,5 +49,6 @@ programs:
         remove_old_files: true  # Optional.
         compress_method: null  # Optional.
         compress_level: null  # Optional.
+        encrypt_files: false  # Optional.
         domains:  # optional. Just backup minor domains in localstorage database. Only chromium is tested.
           - some domain

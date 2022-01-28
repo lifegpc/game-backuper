@@ -174,6 +174,17 @@ class CompressMethod(IntEnum):
         else:
             raise TypeError('Must be str.')
 
+    def to_str(self) -> str:
+        return {
+            CompressMethod.BZIP2: 'bzip2',
+            CompressMethod.GZIP: 'gzip',
+            CompressMethod.LZMA: 'lzma',
+            CompressMethod.LZIP: 'lzip',
+            CompressMethod.ZSTD: 'zstd',
+            CompressMethod.SNAPPY: 'snappy',
+            CompressMethod.BROTLI: 'brotli',
+        }[self]
+
 
 class CompressConfig:
     def __init__(self, method: str, level: int = None):
