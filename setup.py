@@ -35,7 +35,8 @@ if "py2exe" in sys.argv:
             "py2exe": {
                 "optimize": 2,
                 "compressed": 1,
-                "excludes": ["pydoc", "unittest"]
+                "excludes": ["pydoc", "unittest"],
+                "includes": ["cryptography.utils", "_cffi_backend"]
             }
         },
         "zipfile": None,
