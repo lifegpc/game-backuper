@@ -431,9 +431,10 @@ class Program(BasicOption, NFBasicOption):
                                 n = i['name']
                     if not relpath(name, n).startswith('..'):
                         r = ConfigPath(i, self._cfg, self)
-                        if r.is_exclude(n, name):
+                        tmp = relpath(name, n)
+                        if r.is_exclude(n, tmp):
                             continue
-                        if not r.is_include(n, name):
+                        if not r.is_include(n, tmp):
                             continue
                         return r
                 elif t == 'leveldb':
