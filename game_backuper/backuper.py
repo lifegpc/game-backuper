@@ -178,12 +178,16 @@ class BackupTask(Thread):
                 if exists(de):
                     remove(de)
                     print(f'{prog}: Remove {de}({fn})')
+                remove_compress_files(de, prog, fn)
+                self.remove_encrypted_file(join(ebp, fn), prog, fn, f)
                 self.db.remove_file(f)
             if f.type == FileType.LEVELDB:
                 de = join(bp, fn + '.db')
                 if exists(de):
                     remove(de)
                     print(f'{prog}: Remove {de}({fn})')
+                remove_compress_files(de, prog, fn + '.db')
+                self.remove_encrypted_file(join(ebp, fn + '.db'), prog, fn, f)
                 self.db.remove_file(f)
 
     def remove_encrypted_file(self, loc: str, prog: str, name: str, f: File):
