@@ -1,4 +1,4 @@
-from getpass import getpass
+from getpass import getpass as _getpass
 from os import close
 from os.path import join
 from shutil import move
@@ -45,6 +45,12 @@ PRIMARY KEY(id)
 );'''
 
 
+def getpass(prompt, cfg: Config) -> str:
+    if cfg.db_password is not None:
+        return cfg.db_password
+    return _getpass(prompt)
+
+
 class Db:
     VERSION = [1, 0, 0, 2]
 
@@ -83,7 +89,7 @@ class Db:
         hydrate_file_if_needed(fn)
         self.db = connect(fn, check_same_thread=False)
         if config.encrypt_db:
-            passpharse = getpass('Please input the password of the database:')
+            passpharse = getpass('Please input the password of the database:', config)  # noqa: E501
             if not self.encrypted:
                 tfn = mkstemp()
                 close(tfn[0])
@@ -98,7 +104,7 @@ class Db:
                 self.db = connect(fn, check_same_thread=False)
             elif opts.change_key:
                 self.__set_encrypt_key(passpharse)
-                passpharse = getpass('Please input new password of the database:')  # noqa: E501
+                passpharse = getpass('Please input new password of the database:', config)  # noqa: E501
                 tfn = mkstemp()
                 close(tfn[0])
                 tfn = tfn[1]
@@ -113,7 +119,7 @@ class Db:
             self.__set_encrypt_key(passpharse)
         else:
             if self.encrypted:
-                passpharse = getpass('Please input the password of the database:')  # noqa: E501
+                passpharse = getpass('Please input the password of the database:', config)  # noqa: E501
                 self.__set_encrypt_key(passpharse)
                 tfn = mkstemp()
                 close(tfn[0])
