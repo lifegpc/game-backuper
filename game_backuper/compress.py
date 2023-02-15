@@ -71,6 +71,8 @@ if have_gzip:
             self._f = None
 
         def close(self):
+            if self._f is None:
+                return
             self._f.close()
 
         def compress(self, data: bytes) -> bytes:
@@ -90,6 +92,8 @@ if have_gzip:
             self._f = None
 
         def close(self):
+            if self._f is None:
+                return
             self._f.close()
 
         def read(self, len: int) -> bytes:
