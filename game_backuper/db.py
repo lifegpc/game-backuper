@@ -171,7 +171,7 @@ class Db:
                 tuple(self.VERSION))
         self.db.commit()
 
-    def add_file(self, f: File):
+    def add_file(self, f: File, commited: bool = True):
         with self._lock:
             self.db.execute('INSERT INTO files (file, size, program, hash) VALUES (?, ?, ?, ?);',  # noqa: E501
                             (f.file, f.size, f.program, f.hash))
@@ -188,7 +188,8 @@ class Db:
                     (f.program, f.file))
                 for i in cur:
                     self.db.execute('INSERT INTO encrypted_files VALUES (?, ?, ?, ?, ?, ?);', (i[0], f.key, f.iv, f.crc32, f.x_compress_type, f.compressed_size))  # noqa: E501
-            self.db.commit()
+            if commited:
+                self.db.commit()
 
     @property
     def encrypted(self):

@@ -39,6 +39,8 @@ class RestoreTask(Thread):
                 nam = r.real_name
                 if f.encrypted:
                     src = join(self.cfg.dest, '.encrypt', prog, fn)
+                    if not exists(src):
+                        src = join(self.cfg.dest, '.encrypt', '.id', str(f.id))  # noqa: E501
                 else:
                     src = join(self.cfg.dest, prog, fn)
                 c = r.compress_config
@@ -78,6 +80,8 @@ class RestoreTask(Thread):
                 nam = r.real_name
                 if f.encrypted:
                     src = join(self.cfg.dest, '.encrypt', prog, fn + '.db')
+                    if not exists(src):
+                        src = join(self.cfg.dest, '.encrypt', '.id', str(f.id))  # noqa: E501
                 else:
                     src = join(self.cfg.dest, prog, fn + '.db')
                 c = r.compress_config

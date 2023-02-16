@@ -21,6 +21,7 @@ class BasicOption:
     _enable_pcre2 = None
     _encrypt_files = None
     _compress_config = None
+    _protect_filename = None
 
     @property
     def compress_config(self) -> CompressConfig:
@@ -65,6 +66,20 @@ class BasicOption:
         return False
 
     @cached_property
+    def protect_filename(self) -> bool:
+        if self._protect_filename is not None:
+            return self._protect_filename and self.encrypt_files
+        prog = getattr(self, "_prog", None)
+        if prog is not None:
+            if prog._protect_filename is not None:
+                return prog._protect_filename and self.encrypt_files
+        cfg = getattr(self, "_cfg", None)
+        if cfg is not None:
+            if cfg._protect_filename is not None:
+                return cfg._protect_filename and self.encrypt_files
+        return False
+
+    @cached_property
     def remove_old_files(self) -> bool:
         if self._remove_old_files is not None:
             return self._remove_old_files
@@ -83,6 +98,7 @@ class BasicOption:
         self.parse_remove_old_files(data)
         self.parse_enable_pcre2(data)
         self.parse_encrypt_files(data)
+        self.parse_protect_filename(data)
 
     def parse_compress_config(self, data=None):
         if data is None:
@@ -114,6 +130,17 @@ class BasicOption:
                 self._encrypt_files = v
             else:
                 raise TypeError('encrypt_files option must be a boolean.')
+            del v
+
+    def parse_protect_filename(self, data=None):
+        if data is None:
+            data = getattr(self, 'data')
+        if 'protect_filename' in data:
+            v = data['protect_filename']
+            if isinstance(v, bool):
+                self._protect_filename = v
+            else:
+                raise TypeError('protect_filename option must be a boolean.')
             del v
 
     def parse_remove_old_files(self, data=None):
@@ -438,7 +465,14 @@ class Program(BasicOption, NFBasicOption):
                             continue
                         return r
                 elif t == 'leveldb':
-                    if relpath(i['name'], name) == '.':
+                    if isabs(i['path']):
+                        n = i['name']
+                    else:
+                        n = i['path']
+                        if 'name' in i and isinstance(i['name'], str):
+                            if i['name'] != '':
+                                n = i['name']
+                    if relpath(n, name) == '.':
                         return ConfigOLeveldb(i, self._cfg, self)
 
     @cached_property

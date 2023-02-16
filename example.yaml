@@ -9,6 +9,7 @@ compress_level: 6
 encrypt_db: false  # Optional. Default value: false. Encrypt the database. Warning: The default python sqlite library don't support encrypt, it just ignore encrypt phases.
 db_password: "Password"  # Specify the password of the encryped database.
 encrypt_files: false  # Optional. Default value: false. Encrypt backup files. The key information will stored in database.
+protect_filename: false  # Optional. Default value: false. Use id in database as file name. Only works when encrypt_files is true.
 programs:
   - name: Your program name  # This name is used to identify different application.
     base: /path/to/save/path  # Must be absoulte path.
@@ -18,6 +19,7 @@ programs:
     compress_method: null  # Optional.
     compress_level: null  # Optional.
     encrypt_files: false  # Optional
+    protect_filename: false  # Optional
     files:
       - BGI.gdb  # path to a file/folder. All subfolders will include if it is a folder. Must be relative path.
       - type: path
@@ -29,6 +31,7 @@ programs:
         compress_method: null  # Optional.
         compress_level: null  # Optional.
         encrypt_files: false  # Optional.
+        protect_filename: false  # Optional
         excludes:  # Optional. Exculde some files. Only effected when path is a folder.
           - data.db  # Releative path
           - /path/to/data.db  # Absolute path
@@ -51,5 +54,6 @@ programs:
         compress_method: null  # Optional.
         compress_level: null  # Optional.
         encrypt_files: false  # Optional.
+        protect_filename: false  # Optional
         domains:  # optional. Just backup minor domains in localstorage database. Only chromium is tested.
           - some domain
