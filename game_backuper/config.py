@@ -21,10 +21,13 @@ class BasicOption:
     _enable_pcre2 = None
     _encrypt_files = None
     _compress_config = None
+    _disable_compress = False
     _protect_filename = None
 
     @property
     def compress_config(self) -> CompressConfig:
+        if self._disable_compress:
+            return None
         if self._compress_config is not None:
             return self._compress_config
         prog = getattr(self, "_prog", None)
@@ -109,6 +112,8 @@ class BasicOption:
                 self._compress_config = CompressConfig(v, data.get("compress_level"))  # noqa: E501
             elif v is not None:
                 raise TypeError('compress_method option should be str or None.')  # noqa: E501
+            else:
+                self._disable_compress = True
 
     def parse_enable_pcre2(self, data=None):
         if data is None:
