@@ -48,4 +48,4 @@ def wildcards_to_regex(s: str, **k):
         s = s.replace(i, f"\\{i}")
     s = s.replace("*", ".*")
     s = s.replace("?", ".")
-    return Regex(s, **k)
+    return Regex(f"^{s}$", **k)
