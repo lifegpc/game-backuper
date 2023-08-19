@@ -23,6 +23,7 @@ class BasicOption:
     _compress_config = None
     _disable_compress = False
     _protect_filename = None
+    _unpin_file = None
 
     @property
     def compress_config(self) -> CompressConfig:
@@ -96,12 +97,27 @@ class BasicOption:
                 return cfg._remove_old_files
         return True
 
+    @cached_property
+    def unpin_file(self) -> bool:
+        if self._unpin_file is not None:
+            return self._unpin_file
+        prog = getattr(self, "_prog", None)
+        if prog is not None:
+            if prog._unpin_file is not None:
+                return prog._unpin_file
+        cfg = getattr(self, "_cfg", None)
+        if cfg is not None:
+            if cfg._unpin_file is not None:
+                return cfg._unpin_file
+        return True
+
     def parse_all(self, data=None):
         self.parse_compress_config(data)
         self.parse_remove_old_files(data)
         self.parse_enable_pcre2(data)
         self.parse_encrypt_files(data)
         self.parse_protect_filename(data)
+        self.parse_unpin_file(data)
 
     def parse_compress_config(self, data=None):
         if data is None:
@@ -157,6 +173,17 @@ class BasicOption:
                 self._remove_old_files = v
             else:
                 raise TypeError('remove_old_files option must be a boolean.')
+            del v
+
+    def parse_unpin_file(self, data=None):
+        if data is None:
+            data = getattr(self, 'data')
+        if 'unpin_file' in data:
+            v = data['unpin_file']
+            if isinstance(v, bool):
+                self._unpin_file = v
+            else:
+                raise TypeError('unpin_file option must be a boolean.')
             del v
 
 

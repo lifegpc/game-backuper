@@ -16,6 +16,7 @@ from game_backuper.restorer import RestoreTask
 from game_backuper.file import remove_compress_files, remove_unencryped_files
 from game_backuper.compress import compress
 from game_backuper.enc import encrypt_file
+from game_backuper.file import unpin_file_if_needed
 from tempfile import mkstemp
 
 
@@ -64,10 +65,14 @@ class BackupTask(Thread):
                                     remove_compress_files(de, prog, f.name)
                                     self.remove_encrypted_file(join(ebp, f[0]), prog, f.name, ori)  # noqa: E501
                                     self.remove_encrypted_file(join(ebpi, str(ori.id)), prog, f.name, ori)  # noqa: E501
+                                    if f.unpin_file:
+                                        unpin_file_if_needed(de)
                                     continue
                                 elif exists(de) and f.encrypt_files and not ori.compressed:  # noqa: E501
                                     print(f'{prog}: Skip {f[0]}.')
                                     remove_unencryped_files(join(bp, f[0]), prog, f.name)  # noqa: E501
+                                    if f.unpin_file:
+                                        unpin_file_if_needed(de)
                                     continue
                             else:
                                 if not f.encrypt_files and exists(de + c.ext):
@@ -75,10 +80,14 @@ class BackupTask(Thread):
                                     remove_compress_files(de, prog, f.name, c.ext)  # noqa: E501
                                     self.remove_encrypted_file(join(ebp, f[0]), prog, f.name, ori)  # noqa: E501
                                     self.remove_encrypted_file(join(ebpi, str(ori.id)), prog, f.name, ori)  # noqa: E501
+                                    if f.unpin_file:
+                                        unpin_file_if_needed(de + c.ext)
                                     continue
                                 elif f.encrypt_files and ori.compressed_type == c.method:  # noqa: E501
                                     print(f'{prog}: Skip {f.name}.')
                                     remove_unencryped_files(join(bp, f.name), prog, f.name)  # noqa: E501
+                                    if f.unpin_file:
+                                        unpin_file_if_needed(de)
                                     continue
                         stats = None
                         if f.encrypt_files:
@@ -95,6 +104,8 @@ class BackupTask(Thread):
                             self.remove_encrypted_file(join(ebpi, str(ori.id)), prog, f.name, ori)  # noqa: E501
                         self.db.set_file(ori.id, nf.size, nf.hash)
                         self.db.set_file_encrypt_information(ori.id, stats)
+                        if f.unpin_file:
+                            unpin_file_if_needed(de)
                     else:
                         if f.protect_filename:
                             self.db.add_file(nf, False)
@@ -115,6 +126,8 @@ class BackupTask(Thread):
                             self.db.set_file_encrypt_information(tmpori.id, s)
                         else:
                             self.db.add_file(nf)
+                        if f.unpin_file:
+                            unpin_file_if_needed(de)
             elif isinstance(f, ConfigLeveldb):
                 from game_backuper.leveldb import have_leveldb
                 if not have_leveldb:
@@ -163,10 +176,14 @@ class BackupTask(Thread):
                                 remove_compress_files(de, prog, f.name)
                                 self.remove_encrypted_file(join(ebp, f[0] + '.db'), prog, f.name, ori)  # noqa: E501
                                 self.remove_encrypted_file(join(ebpi, str(ori.id)), prog, f.name, ori)  # noqa: E501
+                                if f.unpin_file:
+                                    unpin_file_if_needed(de)
                                 continue
                             elif exists(de) and f.encrypt_files and not ori.compressed:  # noqa: E501
                                 print(f'{prog}: Skip {f[0]}.')
                                 remove_unencryped_files(join(bp, f[0] + '.db'), prog, f.name)  # noqa: E501
+                                if f.unpin_file:
+                                    unpin_file_if_needed(de)
                                 continue
                         else:
                             if not f.encrypt_files and exists(de + c.ext):
@@ -174,10 +191,14 @@ class BackupTask(Thread):
                                 remove_compress_files(de, prog, f.name, c.ext)
                                 self.remove_encrypted_file(join(ebp, f[0] + '.db'), prog, f.name, ori)  # noqa: E501
                                 self.remove_encrypted_file(join(ebpi, str(ori.id)), prog, f.name, ori)  # noqa: E501
+                                if f.unpin_file:
+                                    unpin_file_if_needed(de + c.ext)
                                 continue
                             elif f.encrypt_files and ori.compressed_type == c.method:  # noqa: E501
                                 print(f'{prog}: Skip {f.name}.')
                                 remove_unencryped_files(join(bp, f.name + '.db'), prog, f.name)  # noqa: E501
+                                if f.unpin_file:
+                                    unpin_file_if_needed(de)
                                 continue
                 if f.protect_filename:
                     ori = self.db.get_file(prog, f[0])
@@ -218,6 +239,8 @@ class BackupTask(Thread):
                 else:
                     self.db.set_file(ori.id, stats.size, stats.hash)
                     self.db.set_file_encrypt_information(ori.id, st)
+                if f.unpin_file:
+                    unpin_file_if_needed(de)
         for fn in fl:
             f = self.db.get_file(prog, fn)
             if f.type is None:

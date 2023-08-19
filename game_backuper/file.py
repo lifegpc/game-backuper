@@ -7,7 +7,7 @@ from game_backuper.filetype import FileType
 from platform import system
 if system() == "Windows":
     try:
-        from game_backuper.cfapi import hydrate_file
+        from game_backuper.cfapi import hydrate_file, unpin_file
         have_cfapi = True
     except Exception:
         have_cfapi = False
@@ -150,3 +150,10 @@ def remove_unencryped_files(loc: str, prog: str, name: str):
         remove(loc)
         print(f'{prog}: Removed {loc}({name})')
     remove_compress_files(loc, prog, name)
+
+
+def unpin_file_if_needed(fn: str):
+    if not have_cfapi:
+        return
+    if exists(fn):
+        unpin_file(fn)
