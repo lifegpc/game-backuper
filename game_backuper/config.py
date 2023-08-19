@@ -109,7 +109,7 @@ class BasicOption:
         if cfg is not None:
             if cfg._unpin_file is not None:
                 return cfg._unpin_file
-        return True
+        return False
 
     def parse_all(self, data=None):
         self.parse_compress_config(data)
