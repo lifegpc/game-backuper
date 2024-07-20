@@ -1,7 +1,7 @@
 # flake8: noqa
 import sys
-from version import version, dversion
-from setuptools import Extension
+from version import version
+from setuptools import setup, Extension
 try:
     from Cython.Build import cythonize
 except ImportError:
@@ -18,44 +18,6 @@ if '--without-zstd' in sys.argv:
 else:
     ext_modules.append(Extension("game_backuper._zstd", ["game_backuper/_zstd.pyx"], libraries=["zstd"]))
 
-if "py2exe" in sys.argv:
-    from distutils.core import setup
-    import py2exe
-    params = {
-        "console": [{
-            'script': "game_backuper/__main__.py",
-            "dest_base": 'game-backuper',
-            'version': version,
-            'product_name': 'game-backuper',
-            'product_version': dversion,
-            'company_name': 'lifegpc',
-            'description': 'A game backuper',
-        }],
-        "options": {
-            "py2exe": {
-                "optimize": 2,
-                "compressed": 1,
-                "excludes": ["pydoc", "unittest"],
-                "includes": ["cryptography.utils", "_cffi_backend", "sqlite3.dump"]
-            }
-        },
-        "zipfile": None,
-    }
-else:
-    from setuptools import setup
-    params = {
-        "install_requires": ["pyyaml"],
-        'entry_points': {
-            'console_scripts': ['game-backuper = game_backuper:start']
-        },
-        "extras_require": {
-            "leveldb": "plyvel",
-            "lzip": "lzip",
-            "snappy": "python-snappy",
-            "brotli": "brotli",
-        },
-        "python_requires": ">=3.6"
-    }
 setup(
     name="game-backuper",
     version=version,
@@ -72,5 +34,15 @@ setup(
     keywords="backup",
     packages=["game_backuper"],
     ext_modules=cythonize(ext_modules, compiler_directives={'language_level': "3"}),
-    **params
+    install_requires=["pyyaml"],
+    entry_points={
+        'console_scripts': ['game-backuper = game_backuper:start']
+    },
+    extras_require={
+        "leveldb": "plyvel",
+        "lzip": "lzip",
+        "snappy": "python-snappy",
+        "brotli": "brotli",
+    },
+    python_requires=">=3.6"
 )
