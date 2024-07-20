@@ -7,7 +7,8 @@ if system() == 'Windows' and sys.version_info.minor > 7:
     add_dll_directory(dirname(sys.executable))
     add_dll_directory(getcwd())
     for i in environ['PATH'].split(";"):
-        add_dll_directory(i)
+        if isdir(i):
+            add_dll_directory(i)
     for i in sys.path:
         if isdir(i):
             add_dll_directory(i)
