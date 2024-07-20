@@ -91,9 +91,9 @@ def hydrate_file(s: str):
         CfHydratePlaceholder(h, 0, -1, 0, LPVOID())
     except OSError as e:
         if GetLastError() != ERROR_INVALID_FUNCTION:
-            CfCloseHandle(h)
             # File is not cloud file
             if e.winerror != -2147024520:
+                CfCloseHandle(h)
                 raise e
     CfCloseHandle(h)
 
