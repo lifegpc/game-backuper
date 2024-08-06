@@ -53,6 +53,7 @@ def getpass(prompt, cfg: Config) -> str:
 
 class Db:
     VERSION = [1, 0, 0, 2]
+    fn = None
 
     def __check_database(self) -> bool:
         self.__updateExistsTable()
@@ -85,9 +86,10 @@ class Db:
     def __init__(self, config: Config, opts: Opts):
         self._cfg = config
         self._opt = opts
-        fn = config.db_path if config.db_path else join(config.dest, "data.db")
-        hydrate_file_if_needed(fn)
-        self.db = connect(fn, check_same_thread=False)
+        self.fn = config.db_path if config.db_path else join(
+            config.dest, "data.db")
+        hydrate_file_if_needed(self.fn)
+        self.db = connect(self.fn, check_same_thread=False)
         if config.encrypt_db:
             passpharse = getpass('Please input the password of the database:', config)  # noqa: E501
             if not self.encrypted:
@@ -100,8 +102,8 @@ class Db:
                     db.execute(q)
                 self.db.close()
                 db.close()
-                move(tfn, fn)
-                self.db = connect(fn, check_same_thread=False)
+                move(tfn, self.fn)
+                self.db = connect(self.fn, check_same_thread=False)
             elif opts.change_key:
                 self.__set_encrypt_key(passpharse)
                 passpharse = getpass('Please input new password of the database:', config)  # noqa: E501
@@ -114,8 +116,8 @@ class Db:
                     db.execute(q)
                 self.db.close()
                 db.close()
-                move(tfn, fn)
-                self.db = connect(fn, check_same_thread=False)
+                move(tfn, self.fn)
+                self.db = connect(self.fn, check_same_thread=False)
             self.__set_encrypt_key(passpharse)
         else:
             if self.encrypted:
@@ -129,8 +131,8 @@ class Db:
                     db.execute(q)
                 self.db.close()
                 db.close()
-                move(tfn, fn)
-                self.db = connect(fn, check_same_thread=False)
+                move(tfn, self.fn)
+                self.db = connect(self.fn, check_same_thread=False)
         if opts.optimize_db:
             self.db.execute('VACUUM;')
             self.db.commit()
@@ -194,7 +196,7 @@ class Db:
     @property
     def encrypted(self):
         try:
-            con = connect(join(self._cfg.dest, 'data.db'))
+            con = connect(self.fn)
             con.execute('SELECT count(*) FROM sqlite_master;')
             con.close()
             return False
