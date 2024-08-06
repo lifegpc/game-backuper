@@ -519,6 +519,7 @@ class Config(BasicOption, NFBasicOption):
     dest = ''
     encrypt_db = False
     db_password = None
+    db_path = None
     progs = []
     progs_name = []
 
@@ -542,6 +543,10 @@ class Config(BasicOption, NFBasicOption):
             if not isinstance(t['db_password'], str):
                 raise ValueError('db_password should be a string.')
             self.db_password = t['db_password']
+        if 'db_path' in t:
+            if not isinstance(t['db_path'], str):
+                raise ValueError('db_path should be a string.')
+            self.db_path = t['db_path']
         if 'programs' not in t:
             raise ValueError("No programs found.")
         self.parse_all(t)

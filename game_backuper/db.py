@@ -85,7 +85,7 @@ class Db:
     def __init__(self, config: Config, opts: Opts):
         self._cfg = config
         self._opt = opts
-        fn = join(config.dest, "data.db")
+        fn = config.db_path if config.db_path else join(config.dest, "data.db")
         hydrate_file_if_needed(fn)
         self.db = connect(fn, check_same_thread=False)
         if config.encrypt_db:

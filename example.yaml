@@ -8,6 +8,7 @@ compress_method: "bzip2"  # Optional. Default value: null. Supported value: "bzi
 compress_level: 6
 encrypt_db: false  # Optional. Default value: false. Encrypt the database. Warning: The default python sqlite library don't support encrypt, it just ignore encrypt phases.
 db_password: "Password"  # Specify the password of the encryped database.
+db_path: /path/to/db/path  # Optional. Default value: $dest/data.db. The path to the database.
 encrypt_files: false  # Optional. Default value: false. Encrypt backup files. The key information will stored in database.
 protect_filename: false  # Optional. Default value: false. Use id in database as file name. Only works when encrypt_files is true.
 unpin_file: false  # Optional. Default value: false. Notifiy sync provider to dehydrate file data.
