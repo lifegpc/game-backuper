@@ -64,6 +64,7 @@ class RestoreTask(Thread):
                     if tf.size == f.size and tf.hash == f.hash:
                         print(f'{prog}: Skip {fn}')
                         continue
+                mkdir_for_file(dest)
                 if f.encrypted:
                     decrypt_file(src, dest, f, fn, prog, CompressConfig(f.compressed_type.to_str()) if f.compressed else None)  # noqa: E501
                 elif c is None:
