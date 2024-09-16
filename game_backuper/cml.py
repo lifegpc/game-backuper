@@ -82,6 +82,7 @@ class Opts:
         print('''game-backuper [options] [backup|restore] [<game names> [...]]
 game-backuper [options] list
 game-backuper [options] list_leveldb_key [<db_path> [...]]
+game-backuper version   Print library support message.
 Options:
     -h, --help          Print help message.
     -c, --config <path> Set config file.
