@@ -15,6 +15,7 @@ class OptAction(IntEnum):
     RESTORE = 1
     LIST = 2
     LIST_LEVELDB_KEY = 3
+    VERSION = 4
 
     @staticmethod
     def from_str(v: str) -> IntEnum:
@@ -28,6 +29,8 @@ class OptAction(IntEnum):
                 return OptAction.LIST
             elif t == 'list_leveldb_key':
                 return OptAction.LIST_LEVELDB_KEY
+            elif t == "version":
+                return OptAction.VERSION
         else:
             raise TypeError('Must be str.')
 
@@ -59,7 +62,7 @@ class Opts:
                 re = OptAction.from_str(cm[0])
                 if re is not None:
                     self.action = re
-                    if re == OptAction.LIST:
+                    if re == OptAction.LIST or re == OptAction.VERSION:
                         return
                     elif re == OptAction.LIST_LEVELDB_KEY:
                         if len(cm) == 1:
